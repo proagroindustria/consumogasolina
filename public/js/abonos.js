@@ -5,21 +5,23 @@ if (!token) {
     window.location.href = '/login.html';
 }
 
+// Variables globales
+let todosEmpleados = [];
+let todosMovimientos = [];
+let movimientoEditando = null;
+
 // Mostrar nombre del usuario
 const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
 document.getElementById('userName').textContent = usuario.nombre || 'Usuario';
 document.getElementById('userAvatar').textContent = usuario.nombre ? usuario.nombre.substring(0, 2).toUpperCase() : 'MH';
 
-// Variables globales
-let todosEmpleados = [];
-
-// Cargar datos
+// Cargar datos al iniciar
 document.addEventListener('DOMContentLoaded', async () => {
-    document.getElementById('fecha').valueAsDate = new Date();
     await cargarSelects();
     await cargarEmpleados();
-    await cargarDepartamentos();
+    await cargarMovimientos();
     inicializarBuscador();
+    inicializarModal();
 });
 
 async function cargarSelects() {
@@ -28,7 +30,7 @@ async function cargarSelects() {
         const unidadesRes = await fetch(`${API_URL}/unidades`);
         const unidades = await unidadesRes.json();
         const unidadSelect = document.getElementById('unidad_id');
-        unidadSelect.innerHTML = '<option value="">Seleccionar unidad (opcional)</option>';
+        unidadSelect.innerHTML = '<option value="">Seleccionar unidad</option>';
         unidades.forEach(u => {
             const option = document.createElement('option');
             option.value = u.id;
@@ -48,15 +50,38 @@ async function cargarSelects() {
             tarjetaSelect.appendChild(option);
         });
         
+        // Departamentos
+        const deptosRes = await fetch(`${API_URL}/departamentos`);
+        const departamentos = await deptosRes.json();
+        const deptoSelect = document.getElementById('departamento_id');
+        deptoSelect.innerHTML = '<option value="">Seleccionar departamento</option>';
+        departamentos.forEach(d => {
+            const option = document.createElement('option');
+            option.value = d.id;
+            option.textContent = d.nombre;
+            deptoSelect.appendChild(option);
+        });
+        
     } catch (error) {
-        console.error('Error en cargarSelects:', error);
+        console.error('Error:', error);
     }
 }
 
 async function cargarEmpleados() {
     try {
         const empleadosRes = await fetch(`${API_URL}/empleados`);
-        todosEmpleados = await empleadosRes.json();
+        const empleados = await empleadosRes.json();
+        
+        // Enriquecer empleados con nombre de departamento
+        const deptosRes = await fetch(`${API_URL}/departamentos`);
+        const departamentos = await deptosRes.json();
+        const deptosMap = new Map(departamentos.map(d => [d.id, d.nombre]));
+        
+        todosEmpleados = empleados.map(emp => ({
+            ...emp,
+            departamento_nombre: deptosMap.get(emp.departamento_id) || ''
+        }));
+        
         console.log('Empleados cargados:', todosEmpleados.length);
     } catch (error) {
         console.error('Error al cargar empleados:', error);
@@ -64,21 +89,55 @@ async function cargarEmpleados() {
     }
 }
 
-async function cargarDepartamentos() {
+async function cargarMovimientos(busqueda = '') {
     try {
-        const response = await fetch(`${API_URL}/departamentos`);
-        const departamentos = await response.json();
-        const deptoSelect = document.getElementById('departamento_id');
-        deptoSelect.innerHTML = '<option value="">Seleccionar conductor primero</option>';
-        departamentos.forEach(d => {
-            const option = document.createElement('option');
-            option.value = d.id;
-            option.textContent = d.nombre;
-            deptoSelect.appendChild(option);
-        });
+        let url = `${API_URL}/movimientos`;
+        if (busqueda) {
+            url += `?search=${encodeURIComponent(busqueda)}`;
+        }
+        const response = await fetch(url);
+        todosMovimientos = await response.json();
+        renderTablaMovimientos(todosMovimientos);
     } catch (error) {
-        console.error('Error al cargar departamentos:', error);
+        console.error('Error:', error);
     }
+}
+
+function renderTablaMovimientos(movimientos) {
+    const tbody = document.querySelector('#movimientosTable tbody');
+    tbody.innerHTML = '';
+    
+    if (movimientos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay movimientos registrados</td></tr>';
+        return;
+    }
+    
+    movimientos.forEach(m => {
+        const row = tbody.insertRow();
+        row.insertCell(0).textContent = new Date(m.fecha).toLocaleDateString();
+        row.insertCell(1).textContent = m.tarjeta_numero || '-';
+        row.insertCell(2).textContent = m.unidad_placas || m.unidad_descripcion || '-';
+        row.insertCell(3).textContent = m.empleado_nombre || '-';
+        row.insertCell(4).textContent = m.departamento_nombre || '-';
+        row.insertCell(5).textContent = `$${parseFloat(m.monto).toLocaleString()}`;
+        row.insertCell(6).textContent = m.observacion || '-';
+        
+        const actionsCell = row.insertCell(7);
+        actionsCell.className = 'actions-cell';
+        actionsCell.innerHTML = `
+            <button class="btn-edit" data-id="${m.id}" title="Editar">✏️</button>
+            <button class="btn-delete" data-id="${m.id}" title="Eliminar">🗑️</button>
+        `;
+    });
+    
+    // Eventos de edición y eliminación
+    document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', () => editarMovimiento(parseInt(btn.dataset.id)));
+    });
+    
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', () => eliminarMovimiento(parseInt(btn.dataset.id)));
+    });
 }
 
 function inicializarBuscador() {
@@ -93,7 +152,6 @@ function inicializarBuscador() {
     
     input.addEventListener('input', (e) => {
         const busqueda = e.target.value.toLowerCase().trim();
-        
         if (busqueda === '') {
             mostrarResultados(todosEmpleados);
         } else {
@@ -108,6 +166,19 @@ function inicializarBuscador() {
         if (!input.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.classList.remove('show');
         }
+    });
+    
+    // Búsqueda en tabla
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', (e) => {
+        const busqueda = e.target.value.toLowerCase();
+        const filtrados = todosMovimientos.filter(m => 
+            (m.unidad_placas && m.unidad_placas.toLowerCase().includes(busqueda)) ||
+            (m.unidad_descripcion && m.unidad_descripcion.toLowerCase().includes(busqueda)) ||
+            (m.tarjeta_numero && m.tarjeta_numero.includes(busqueda)) ||
+            (m.observacion && m.observacion.toLowerCase().includes(busqueda))
+        );
+        renderTablaMovimientos(filtrados);
     });
 }
 
@@ -125,7 +196,8 @@ function mostrarResultados(empleados) {
         <div class="search-dropdown-item" 
              data-id="${emp.id}" 
              data-nombre="${emp.nombre_completo}"
-             data-departamento="${emp.departamento_id || ''}">
+             data-departamento-id="${emp.departamento_id || ''}"
+             data-departamento-nombre="${emp.departamento_nombre || ''}">
             <span class="item-icon">👤</span>
             <span class="item-name">${emp.nombre_completo}</span>
             <span class="item-id">📛 ${emp.trabajo_id || 'N/A'}</span>
@@ -138,13 +210,24 @@ function mostrarResultados(empleados) {
         item.addEventListener('click', () => {
             const id = parseInt(item.dataset.id);
             const nombre = item.dataset.nombre;
-            const departamentoId = item.dataset.departamento;
+            const deptoId = item.dataset.departamentoId;
+            const deptoNombre = item.dataset.departamentoNombre;
             
             document.getElementById('empleado_id').value = id;
             input.value = nombre;
             
-            if (departamentoId && departamentoId !== '') {
-                document.getElementById('departamento_id').value = departamentoId;
+            // Actualizar departamento (select oculto o campo)
+            if (deptoId && deptoId !== '') {
+                document.getElementById('departamento_id').value = deptoId;
+                // Si tienes un campo de texto para mostrar el nombre
+                if (document.getElementById('departamento_nombre')) {
+                    document.getElementById('departamento_nombre').value = deptoNombre;
+                }
+            } else {
+                document.getElementById('departamento_id').value = '';
+                if (document.getElementById('departamento_nombre')) {
+                    document.getElementById('departamento_nombre').value = 'Sin departamento';
+                }
             }
             
             dropdown.classList.remove('show');
@@ -159,90 +242,131 @@ function mostrarResultados(empleados) {
     });
 }
 
-// Registrar movimiento
+function inicializarModal() {
+    const modal = document.getElementById('modalAbono');
+    const btnNuevo = document.getElementById('btnNuevoAbono');
+    const closeBtn = document.querySelector('.modal-close');
+    const cancelBtn = document.querySelector('.modal-cancel');
+    
+    btnNuevo.addEventListener('click', () => {
+        movimientoEditando = null;
+        document.getElementById('modalTitle').textContent = 'Nuevo Abono';
+        document.getElementById('movimientoForm').reset();
+        document.getElementById('fecha').valueAsDate = new Date();
+        document.getElementById('conductorInput').value = '';
+        document.getElementById('empleado_id').value = '';
+        document.getElementById('movimiento_id').value = '';
+        modal.classList.add('show');
+    });
+    
+    closeBtn.addEventListener('click', () => modal.classList.remove('show'));
+    cancelBtn.addEventListener('click', () => modal.classList.remove('show'));
+    
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('show');
+    });
+}
+
+async function editarMovimiento(id) {
+    const movimiento = todosMovimientos.find(m => m.id === id);
+    if (!movimiento) return;
+    
+    movimientoEditando = id;
+    document.getElementById('modalTitle').textContent = 'Editar Abono';
+    document.getElementById('fecha').value = movimiento.fecha.split('T')[0];
+    document.getElementById('tarjeta_id').value = movimiento.tarjeta_id;
+    document.getElementById('unidad_id').value = movimiento.unidad_id || '';
+    document.getElementById('departamento_id').value = movimiento.departamento_id || '';
+    document.getElementById('monto').value = movimiento.monto;
+    document.getElementById('observacion').value = movimiento.observacion || '';
+    document.getElementById('movimiento_id').value = id;
+    
+    if (movimiento.empleado_id) {
+        const empleado = todosEmpleados.find(e => e.id === movimiento.empleado_id);
+        if (empleado) {
+            document.getElementById('conductorInput').value = empleado.nombre_completo;
+            document.getElementById('empleado_id').value = empleado.id;
+        }
+    }
+    
+    document.getElementById('modalAbono').classList.add('show');
+}
+
+async function eliminarMovimiento(id) {
+    if (!confirm('¿Estás seguro de eliminar este movimiento?')) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/movimientos/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+            await cargarMovimientos();
+            alert('✅ Movimiento eliminado correctamente');
+        } else {
+            alert('❌ Error al eliminar');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Error de conexión');
+    }
+}
+
+// Registrar/Actualizar movimiento
 document.getElementById('movimientoForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const successMsg = document.getElementById('successMsg');
     const errorMsg = document.getElementById('errorMsg');
     const submitBtn = document.querySelector('.btn-submit');
+    const movimientoId = document.getElementById('movimiento_id').value;
     
     successMsg.classList.remove('show');
     errorMsg.classList.remove('show');
     
-    // Validar tarjeta
-    const tarjetaId = document.getElementById('tarjeta_id').value;
-    if (!tarjetaId) {
-        errorMsg.textContent = '❌ Por favor selecciona una tarjeta';
-        errorMsg.classList.add('show');
-        return;
-    }
+    const movimiento = {
+        fecha: document.getElementById('fecha').value,
+        tarjeta_id: parseInt(document.getElementById('tarjeta_id').value),
+        unidad_id: document.getElementById('unidad_id').value ? parseInt(document.getElementById('unidad_id').value) : null,
+        empleado_id: document.getElementById('empleado_id').value ? parseInt(document.getElementById('empleado_id').value) : null,
+        departamento_id: document.getElementById('departamento_id').value ? parseInt(document.getElementById('departamento_id').value) : null,
+        monto: parseFloat(document.getElementById('monto').value),
+        observacion: document.getElementById('observacion').value
+    };
     
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
     
-    // Obtener valores
-    const fecha = document.getElementById('fecha').value;
-    const unidadId = document.getElementById('unidad_id').value;
-    const empleadoId = document.getElementById('empleado_id').value;
-    const departamentoId = document.getElementById('departamento_id').value;
-    const monto = document.getElementById('monto').value;
-    const observacion = document.getElementById('observacion').value;
-    
-    const movimiento = {
-        fecha: fecha,
-        tarjeta_id: parseInt(tarjetaId),
-        unidad_id: unidadId ? parseInt(unidadId) : null,
-        empleado_id: empleadoId ? parseInt(empleadoId) : null,
-        departamento_id: departamentoId ? parseInt(departamentoId) : null,
-        monto: parseFloat(monto),
-        observacion: observacion
-    };
-    
-    console.log('Enviando movimiento:', movimiento);
-    
     try {
-        const response = await fetch(`${API_URL}/movimientos`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        const url = movimientoId ? `${API_URL}/movimientos/${movimientoId}` : `${API_URL}/movimientos`;
+        const method = movimientoId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(movimiento)
         });
         
         if (response.ok) {
-            successMsg.textContent = '✅ ¡Abono registrado correctamente!';
+            successMsg.textContent = movimientoId ? '✅ Movimiento actualizado correctamente' : '✅ Abono registrado correctamente';
             successMsg.classList.add('show');
-            document.getElementById('movimientoForm').reset();
-            document.getElementById('fecha').valueAsDate = new Date();
-            document.getElementById('conductorInput').value = '';
-            document.getElementById('empleado_id').value = '';
-            document.getElementById('departamento_id').value = '';
+            document.getElementById('modalAbono').classList.remove('show');
+            await cargarMovimientos();
             
-            setTimeout(() => {
-                successMsg.classList.remove('show');
-            }, 4000);
+            setTimeout(() => successMsg.classList.remove('show'), 3000);
         } else {
             const error = await response.json();
-            errorMsg.textContent = '❌ Error: ' + (error.error || 'No se pudo registrar');
+            errorMsg.textContent = '❌ Error: ' + (error.error || 'No se pudo guardar');
             errorMsg.classList.add('show');
         }
     } catch (error) {
-        console.error('Error:', error);
-        errorMsg.textContent = '❌ Error de conexión con el servidor';
+        errorMsg.textContent = '❌ Error de conexión';
         errorMsg.classList.add('show');
     } finally {
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
     }
-});
-
-// Reset
-document.querySelector('.btn-reset')?.addEventListener('click', () => {
-    document.getElementById('fecha').valueAsDate = new Date();
-    document.getElementById('conductorInput').value = '';
-    document.getElementById('empleado_id').value = '';
-    document.getElementById('departamento_id').value = '';
-    document.getElementById('successMsg').classList.remove('show');
-    document.getElementById('errorMsg').classList.remove('show');
 });
 
 // Logout

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrar Abono | GasControl</title>
+    <title>Movimientos | GasControl</title>
     <link rel="stylesheet" href="/css/global.css">
     <link rel="stylesheet" href="/css/abonos.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -22,7 +22,7 @@
                 </a>
                 <a href="/abonos.html" class="nav-item active">
                     <span>💰</span>
-                    <span>Registrar Abono</span>
+                    <span>Movimientos</span>
                 </a>
                 <a href="/reportes.html" class="nav-item">
                     <span>📈</span>
@@ -34,7 +34,7 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="top-bar">
-                <h1 class="page-title">Registrar Abono</h1>
+                <h1 class="page-title">💰 Movimientos</h1>
                 <div class="user-menu">
                     <span class="user-name" id="userName"></span>
                     <div class="user-avatar" id="userAvatar">MH</div>
@@ -43,83 +43,104 @@
             </div>
 
             <div class="container">
-                <div class="abono-card">
-                    <div class="abono-header">
-                        <h2>💰 Nuevo Abono de Gasolina</h2>
-                        <p>Complete el formulario para registrar una nueva recarga o abono</p>
+                <!-- Botón para nuevo abono y buscador -->
+                <div class="actions-bar">
+                    <button id="btnNuevoAbono" class="btn btn-primary">➕ Nuevo Abono</button>
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="🔍 Buscar por unidad, conductor o tarjeta..." class="search-input">
                     </div>
-                    <div class="abono-body">
-                        <div class="required-info">Los campos marcados con * son obligatorios</div>
-                        
-                        <form id="movimientoForm">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Fecha <span class="required">*</span></label>
-                                    <input type="date" id="fecha" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Tarjeta <span class="required">*</span></label>
-                                    <select id="tarjeta_id" required>
-                                        <option value="">Seleccionar tarjeta</option>
-                                    </select>
-                                </div>
-                            </div>
+                </div>
 
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Unidad</label>
-                                    <select id="unidad_id">
-                                        <option value="">Seleccionar unidad (opcional)</option>
-                                    </select>
-                                </div>
-                               <div class="form-group">
-    <label>Conductor</label>
-    <div class="search-container">
-        <input type="text" 
-               id="conductorInput" 
-               class="search-input"
-               placeholder="🔍 Buscar conductor..."
-               autocomplete="off">
-        <div id="conductorDropdown" class="search-dropdown"></div>
-        <input type="hidden" id="empleado_id">
-    </div>
-    <div class="search-hint">Escribe el nombre del conductor para buscarlo</div>
-</div>
-                          
-
- <div class="form-group">
-        <label>Departamento</label>
-        <select id="departamento_id" disabled>
-            <option value="">Se cargará automáticamente</option>
-        </select>
-    </div>
-</div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Monto <span class="required">*</span></label>
-                                    <input type="number" id="monto" step="0.01" placeholder="0.00" required>
-                                </div>
+                <!-- Modal para registrar/editar abono -->
+                <div id="modalAbono" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 id="modalTitle">Nuevo Abono</h3>
+                            <span class="modal-close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <form id="movimientoForm">
+                                <input type="hidden" id="movimiento_id">
                                 
-                            </div>
+                                <!-- Fila 1: Fecha y Tarjeta -->
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Fecha *</label>
+                                        <input type="date" id="fecha" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Tarjeta *</label>
+                                        <select id="tarjeta_id" required>
+                                            <option value="">Seleccionar tarjeta</option>
+                                        </select>
+                                    </div>
+                                </div>
 
-                            <div class="form-group">
-                                <label>Observación</label>
-                                <textarea id="observacion" rows="3" placeholder="Ej: Apoyo a unidad X, Recarga mensual..."></textarea>
-                            </div>
+                                <div class="form-row">
+    <div class="form-group">
+        <label>Conductor</label>
+        <div class="search-container">
+            <input type="text" id="conductorInput" class="search-input" placeholder="🔍 Buscar conductor..." autocomplete="off">
+            <div id="conductorDropdown" class="search-dropdown"></div>
+            <input type="hidden" id="empleado_id">
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Departamento</label>
+        <input type="text" id="departamento_nombre" class="form-control" 
+               style="background-color: #f1f5f9; cursor: default;" 
+               readonly placeholder="Seleccione un conductor">
+        <input type="hidden" id="departamento_id">
+    </div>
+</div>
 
-                            <div class="form-buttons">
-                                <button type="submit" class="btn-submit">
-                                    💾 Registrar Abono
-                                </button>
-                                <button type="reset" class="btn-reset">
-                                    🗑️ Limpiar
-                                </button>
-                            </div>
+                                <!-- Fila 3: Unidad y Monto -->
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Unidad</label>
+                                        <select id="unidad_id">
+                                            <option value="">Seleccionar unidad</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Monto *</label>
+                                        <input type="number" id="monto" step="0.01" placeholder="0.00" required>
+                                    </div>
+                                </div>
 
-                            <div id="successMsg" class="success-msg"></div>
-                            <div id="errorMsg" class="error-msg"></div>
-                        </form>
+                                <!-- Fila 4: Observación -->
+                                <div class="form-group">
+                                    <label>Observación</label>
+                                    <textarea id="observacion" rows="2" placeholder="Ej: Apoyo a unidad X, Recarga mensual..."></textarea>
+                                </div>
+
+                                <!-- Botones -->
+                                <div class="form-buttons">
+                                    <button type="submit" class="btn-submit">💾 Guardar</button>
+                                    <button type="button" class="btn-reset modal-cancel">Cancelar</button>
+                                </div>
+
+                                <div id="successMsg" class="success-msg"></div>
+                                <div id="errorMsg" class="error-msg"></div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de movimientos -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📋 Historial de Movimientos</h3>
+                    </div>
+                    <div class="table-container">
+                        <table id="movimientosTable">
+                            <thead>
+                                <tr><th>Fecha</th><th>Tarjeta</th><th>Unidad</th><th>Conductor</th><th>Departamento</th><th>Monto</th><th>Observación</th><th>Acciones</th>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="8" class="text-center">Cargando...</td>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

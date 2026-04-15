@@ -257,52 +257,57 @@ app.post('/api/movimientos', async (req, res) => {
 });
 
 app.get('/api/movimientos', async (req, res) => {
-    const { fecha_inicio, fecha_fin, unidad_id, departamento_id } = req.query;
-    
     try {
-        let query = `
+        // Obtener movimientos
+        const result = await bdGasolina.query(`
             SELECT m.*, 
                    t.numero as tarjeta_numero,
                    u.placas as unidad_placas,
-                   u.descripcion as unidad_descripcion,
-                   d.nombre as departamento_nombre
+                   u.descripcion as unidad_descripcion
             FROM movimientos m
             LEFT JOIN tarjetas t ON m.tarjeta_id = t.id
             LEFT JOIN unidades u ON m.unidad_id = u.id
-            LEFT JOIN bd_principal.public.departamentos d ON m.departamento_id = d.id
-            WHERE 1=1
-        `;
-        const params = [];
-        let paramIndex = 1;
+            ORDER BY m.fecha DESC
+            LIMIT 100
+        `);
         
-        if (fecha_inicio) {
-            query += ` AND m.fecha >= $${paramIndex}`;
-            params.push(fecha_inicio);
-            paramIndex++;
+        const movimientos = result.rows;
+        
+        if (movimientos.length === 0) {
+            return res.json([]);
         }
         
-        if (fecha_fin) {
-            query += ` AND m.fecha <= $${paramIndex}`;
-            params.push(fecha_fin);
-            paramIndex++;
+        // Obtener IDs únicos de empleados y departamentos
+        const empleadosIds = [...new Set(movimientos.map(m => m.empleado_id).filter(id => id))];
+        const deptosIds = [...new Set(movimientos.map(m => m.departamento_id).filter(id => id))];
+        
+        // Mapear nombres de empleados
+        let empleadosMap = new Map();
+        if (empleadosIds.length > 0) {
+            const empleadosRes = await bdPrincipal.query(`
+                SELECT id, CONCAT(nombre, ' ', apellido_paterno, ' ', COALESCE(apellido_materno, '')) as nombre_completo
+                FROM empleados WHERE id = ANY($1::int[])
+            `, [empleadosIds]);
+            empleadosMap = new Map(empleadosRes.rows.map(e => [e.id, e.nombre_completo]));
         }
         
-        if (unidad_id) {
-            query += ` AND m.unidad_id = $${paramIndex}`;
-            params.push(unidad_id);
-            paramIndex++;
+        // Mapear nombres de departamentos
+        let deptosMap = new Map();
+        if (deptosIds.length > 0) {
+            const deptosRes = await bdPrincipal.query(`
+                SELECT id, nombre FROM departamentos WHERE id = ANY($1::int[])
+            `, [deptosIds]);
+            deptosMap = new Map(deptosRes.rows.map(d => [d.id, d.nombre]));
         }
         
-        if (departamento_id) {
-            query += ` AND m.departamento_id = $${paramIndex}`;
-            params.push(departamento_id);
-            paramIndex++;
-        }
+        // Enriquecer movimientos con nombres
+        const movimientosEnriquecidos = movimientos.map(m => ({
+            ...m,
+            empleado_nombre: empleadosMap.get(m.empleado_id) || null,
+            departamento_nombre: deptosMap.get(m.departamento_id) || null
+        }));
         
-        query += ` ORDER BY m.fecha DESC LIMIT 100`;
-        
-        const result = await bdGasolina.query(query, params);
-        res.json(result.rows);
+        res.json(movimientosEnriquecidos);
         
     } catch (error) {
         console.error('Error en GET /api/movimientos:', error);
@@ -310,7 +315,57 @@ app.get('/api/movimientos', async (req, res) => {
     }
 });
 
+// DELETE movimiento
+app.delete('/api/movimientos/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Obtener el monto antes de eliminar
+        const movimiento = await bdGasolina.query('SELECT monto, fecha FROM movimientos WHERE id = $1', [id]);
+        if (movimiento.rows.length === 0) {
+            return res.status(404).json({ error: 'Movimiento no encontrado' });
+        }
+        
+        await bdGasolina.query('DELETE FROM movimientos WHERE id = $1', [id]);
+        
+        // Restaurar presupuesto
+        const fecha = movimiento.rows[0].fecha;
+        const mes = new Date(fecha).getMonth() + 1;
+        const anio = new Date(fecha).getFullYear();
+        const monto = movimiento.rows[0].monto;
+        
+        await bdGasolina.query(`
+            UPDATE presupuesto_global 
+            SET monto_restante = monto_restante + $1
+            WHERE mes = $2 AND anio = $3
+        `, [monto, mes, anio]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Error al eliminar movimiento' });
+    }
+});
 
+// PUT movimiento (editar)
+app.put('/api/movimientos/:id', async (req, res) => {
+    const { id } = req.params;
+    const { fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion } = req.body;
+    
+    try {
+        const result = await bdGasolina.query(`
+            UPDATE movimientos 
+            SET fecha = $1, tarjeta_id = $2, unidad_id = $3, empleado_id = $4, 
+                departamento_id = $5, monto = $6, observacion = $7
+            WHERE id = $8
+            RETURNING id
+        `, [fecha, tarjeta_id, unidad_id || null, empleado_id || null, departamento_id || null, monto, observacion, id]);
+        
+        res.json({ success: true, id: result.rows[0].id });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Error al actualizar movimiento' });
+    }
+});
 
 // Obtener DEPARTAMENTOS (para el select)
 app.get('/api/departamentos', async (req, res) => {
