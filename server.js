@@ -77,27 +77,7 @@ app.get('/api/verificar-conexion', async (req, res) => {
 
 
 
-// Obtener unidades reales
-app.get('/api/unidades-reales', async (req, res) => {
-    try {
-        const result = await bdGasolina.query(`
-            SELECT id, placas, marca, modelo, descripcion
-            FROM unidades 
-            WHERE activo = true
-            LIMIT 10
-        `);
-        res.json({
-            success: true,
-            total: result.rows.length,
-            unidades: result.rows
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
+
 
 const bcrypt = require('bcrypt');
 
@@ -177,11 +157,21 @@ app.get('/abonos.html', (req, res) => {
 app.get('/api/unidades', async (req, res) => {
     try {
         const result = await bdGasolina.query(`
-            SELECT id, placas, marca, modelo, descripcion, tipo_unidad
+            SELECT 
+                id, 
+                placas, 
+                descripcion,
+                CASE 
+                    WHEN descripcion IS NOT NULL AND descripcion != '' THEN descripcion
+                    WHEN placas IS NOT NULL AND placas != '' THEN placas || ' - ' || marca || ' ' || modelo
+                    ELSE marca || ' ' || modelo
+                END as nombre_mostrar,
+                tipo_unidad
             FROM unidades 
             WHERE activo = true
             ORDER BY tipo_unidad, placas NULLS LAST
         `);
+        
         res.json(result.rows);
     } catch (error) {
         console.error('Error en /api/unidades:', error);

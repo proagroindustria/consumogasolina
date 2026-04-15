@@ -34,7 +34,8 @@ async function cargarSelects() {
         unidades.forEach(u => {
             const option = document.createElement('option');
             option.value = u.id;
-            option.textContent = u.placas || u.descripcion || `${u.marca} ${u.modelo}`;
+            // Usar nombre_mostrar (viene del backend con CASE)
+            option.textContent = u.nombre_mostrar || u.descripcion || u.placas || 'Sin descripción';
             unidadSelect.appendChild(option);
         });
         
