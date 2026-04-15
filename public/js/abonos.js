@@ -276,17 +276,26 @@ async function editarMovimiento(id) {
     document.getElementById('fecha').value = movimiento.fecha.split('T')[0];
     document.getElementById('tarjeta_id').value = movimiento.tarjeta_id;
     document.getElementById('unidad_id').value = movimiento.unidad_id || '';
-    document.getElementById('departamento_id').value = movimiento.departamento_id || '';
     document.getElementById('monto').value = movimiento.monto;
     document.getElementById('observacion').value = movimiento.observacion || '';
     document.getElementById('movimiento_id').value = id;
     
+    // Conductor
     if (movimiento.empleado_id) {
         const empleado = todosEmpleados.find(e => e.id === movimiento.empleado_id);
         if (empleado) {
             document.getElementById('conductorInput').value = empleado.nombre_completo;
             document.getElementById('empleado_id').value = empleado.id;
         }
+    }
+    
+    // Departamento (usar el nombre que viene del endpoint)
+    if (movimiento.departamento_nombre) {
+        document.getElementById('departamento_nombre').value = movimiento.departamento_nombre;
+        document.getElementById('departamento_id').value = movimiento.departamento_id || '';
+    } else {
+        document.getElementById('departamento_nombre').value = '';
+        document.getElementById('departamento_id').value = '';
     }
     
     document.getElementById('modalAbono').classList.add('show');

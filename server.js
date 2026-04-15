@@ -258,56 +258,21 @@ app.post('/api/movimientos', async (req, res) => {
 
 app.get('/api/movimientos', async (req, res) => {
     try {
-        // Obtener movimientos
         const result = await bdGasolina.query(`
             SELECT m.*, 
                    t.numero as tarjeta_numero,
                    u.placas as unidad_placas,
-                   u.descripcion as unidad_descripcion
+                   u.descripcion as unidad_descripcion,
+                   d.nombre as departamento_nombre
             FROM movimientos m
             LEFT JOIN tarjetas t ON m.tarjeta_id = t.id
             LEFT JOIN unidades u ON m.unidad_id = u.id
+            LEFT JOIN bd_principal.public.departamentos d ON m.departamento_id = d.id
             ORDER BY m.fecha DESC
             LIMIT 100
         `);
         
-        const movimientos = result.rows;
-        
-        if (movimientos.length === 0) {
-            return res.json([]);
-        }
-        
-        // Obtener IDs únicos de empleados y departamentos
-        const empleadosIds = [...new Set(movimientos.map(m => m.empleado_id).filter(id => id))];
-        const deptosIds = [...new Set(movimientos.map(m => m.departamento_id).filter(id => id))];
-        
-        // Mapear nombres de empleados
-        let empleadosMap = new Map();
-        if (empleadosIds.length > 0) {
-            const empleadosRes = await bdPrincipal.query(`
-                SELECT id, CONCAT(nombre, ' ', apellido_paterno, ' ', COALESCE(apellido_materno, '')) as nombre_completo
-                FROM empleados WHERE id = ANY($1::int[])
-            `, [empleadosIds]);
-            empleadosMap = new Map(empleadosRes.rows.map(e => [e.id, e.nombre_completo]));
-        }
-        
-        // Mapear nombres de departamentos
-        let deptosMap = new Map();
-        if (deptosIds.length > 0) {
-            const deptosRes = await bdPrincipal.query(`
-                SELECT id, nombre FROM departamentos WHERE id = ANY($1::int[])
-            `, [deptosIds]);
-            deptosMap = new Map(deptosRes.rows.map(d => [d.id, d.nombre]));
-        }
-        
-        // Enriquecer movimientos con nombres
-        const movimientosEnriquecidos = movimientos.map(m => ({
-            ...m,
-            empleado_nombre: empleadosMap.get(m.empleado_id) || null,
-            departamento_nombre: deptosMap.get(m.departamento_id) || null
-        }));
-        
-        res.json(movimientosEnriquecidos);
+        res.json(result.rows);
         
     } catch (error) {
         console.error('Error en GET /api/movimientos:', error);
