@@ -77,7 +77,27 @@ app.get('/api/verificar-conexion', async (req, res) => {
 
 
 
-
+// Obtener unidades reales
+app.get('/api/unidades-reales', async (req, res) => {
+    try {
+        const result = await bdGasolina.query(`
+            SELECT id, placas, marca, modelo, descripcion
+            FROM unidades 
+            WHERE activo = true
+            LIMIT 10
+        `);
+        res.json({
+            success: true,
+            total: result.rows.length,
+            unidades: result.rows
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
 
 const bcrypt = require('bcrypt');
 
@@ -157,21 +177,11 @@ app.get('/abonos.html', (req, res) => {
 app.get('/api/unidades', async (req, res) => {
     try {
         const result = await bdGasolina.query(`
-            SELECT 
-                id, 
-                placas, 
-                descripcion,
-                CASE 
-                    WHEN descripcion IS NOT NULL AND descripcion != '' THEN descripcion
-                    WHEN placas IS NOT NULL AND placas != '' THEN placas || ' - ' || marca || ' ' || modelo
-                    ELSE marca || ' ' || modelo
-                END as nombre_mostrar,
-                tipo_unidad
+            SELECT id, placas, marca, modelo, descripcion, tipo_unidad
             FROM unidades 
             WHERE activo = true
             ORDER BY tipo_unidad, placas NULLS LAST
         `);
-        
         res.json(result.rows);
     } catch (error) {
         console.error('Error en /api/unidades:', error);
@@ -248,21 +258,56 @@ app.post('/api/movimientos', async (req, res) => {
 
 app.get('/api/movimientos', async (req, res) => {
     try {
+        // Obtener movimientos
         const result = await bdGasolina.query(`
             SELECT m.*, 
                    t.numero as tarjeta_numero,
                    u.placas as unidad_placas,
-                   u.descripcion as unidad_descripcion,
-                   d.nombre as departamento_nombre
+                   u.descripcion as unidad_descripcion
             FROM movimientos m
             LEFT JOIN tarjetas t ON m.tarjeta_id = t.id
             LEFT JOIN unidades u ON m.unidad_id = u.id
-            LEFT JOIN bd_principal.public.departamentos d ON m.departamento_id = d.id
             ORDER BY m.fecha DESC
             LIMIT 100
         `);
         
-        res.json(result.rows);
+        const movimientos = result.rows;
+        
+        if (movimientos.length === 0) {
+            return res.json([]);
+        }
+        
+        // Obtener IDs únicos de empleados y departamentos
+        const empleadosIds = [...new Set(movimientos.map(m => m.empleado_id).filter(id => id))];
+        const deptosIds = [...new Set(movimientos.map(m => m.departamento_id).filter(id => id))];
+        
+        // Mapear nombres de empleados
+        let empleadosMap = new Map();
+        if (empleadosIds.length > 0) {
+            const empleadosRes = await bdPrincipal.query(`
+                SELECT id, CONCAT(nombre, ' ', apellido_paterno, ' ', COALESCE(apellido_materno, '')) as nombre_completo
+                FROM empleados WHERE id = ANY($1::int[])
+            `, [empleadosIds]);
+            empleadosMap = new Map(empleadosRes.rows.map(e => [e.id, e.nombre_completo]));
+        }
+        
+        // Mapear nombres de departamentos
+        let deptosMap = new Map();
+        if (deptosIds.length > 0) {
+            const deptosRes = await bdPrincipal.query(`
+                SELECT id, nombre FROM departamentos WHERE id = ANY($1::int[])
+            `, [deptosIds]);
+            deptosMap = new Map(deptosRes.rows.map(d => [d.id, d.nombre]));
+        }
+        
+        // Enriquecer movimientos con nombres
+        const movimientosEnriquecidos = movimientos.map(m => ({
+            ...m,
+            empleado_nombre: empleadosMap.get(m.empleado_id) || null,
+            departamento_nombre: deptosMap.get(m.departamento_id) || null
+        }));
+        
+        res.json(movimientosEnriquecidos);
         
     } catch (error) {
         console.error('Error en GET /api/movimientos:', error);
@@ -363,6 +408,189 @@ app.get('/api/presupuesto/actual', async (req, res) => {
     }
 });
 
+
+
+ // =====================================================
+// ENDPOINT PARA GRÁFICAS
+// =====================================================
+
+// ENDPOINT PARA GRÁFICAS
+app.get('/api/reportes/graficas', async (req, res) => {
+    const { anio, mes } = req.query;
+    const añoSeleccionado = anio || new Date().getFullYear();
+    
+    try {
+        // Lista de todos los meses
+        const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+        
+        // 1. Abono por mes (todos los meses)
+        const abonoMensual = await bdGasolina.query(`
+            SELECT 
+                EXTRACT(MONTH FROM fecha) as mes_numero,
+                COALESCE(SUM(monto), 0) as total
+            FROM movimientos
+            WHERE EXTRACT(YEAR FROM fecha) = $1
+            GROUP BY EXTRACT(MONTH FROM fecha)
+            ORDER BY mes_numero
+        `, [añoSeleccionado]);
+        
+        // Crear mapa de abonos por mes
+        const abonoMap = new Map();
+        abonoMensual.rows.forEach(r => {
+            abonoMap.set(parseInt(r.mes_numero), parseFloat(r.total));
+        });
+        
+        // Array de valores para cada mes (con 0 si no hay datos)
+        const abonoValores = [];
+        for (let i = 1; i <= 12; i++) {
+            abonoValores.push(abonoMap.get(i) || 0);
+        }
+        
+        // 2. Presupuesto vs Abono por mes
+        const presupuestoMensual = await bdGasolina.query(`
+            SELECT mes, anio, monto_inicial,
+                   COALESCE((monto_inicial - monto_restante), 0) as gastado
+            FROM presupuesto_global
+            WHERE anio = $1
+            ORDER BY mes ASC
+        `, [añoSeleccionado]);
+        
+        // Crear mapas de presupuesto y gastado
+        const presupuestoMap = new Map();
+        const gastadoMap = new Map();
+        presupuestoMensual.rows.forEach(r => {
+            presupuestoMap.set(r.mes, parseFloat(r.monto_inicial));
+            gastadoMap.set(r.mes, parseFloat(r.gastado));
+        });
+        
+        // Arrays para todos los meses
+        const presupuestoValores = [];
+        const gastadoValores = [];
+        for (let i = 1; i <= 12; i++) {
+            presupuestoValores.push(presupuestoMap.get(i) || 0);
+            gastadoValores.push(gastadoMap.get(i) || 0);
+        }
+        
+        // 3. Abono por departamento
+        const deptoResult = await bdGasolina.query(`
+            SELECT 
+                m.departamento_id,
+                COALESCE(SUM(m.monto), 0) as total
+            FROM movimientos m
+            WHERE m.departamento_id IS NOT NULL
+              AND EXTRACT(YEAR FROM m.fecha) = $1
+            GROUP BY m.departamento_id
+            ORDER BY total DESC
+            LIMIT 8
+        `, [añoSeleccionado]);
+        
+        // 4. Abono por conductor
+        const conductorResult = await bdGasolina.query(`
+            SELECT 
+                m.empleado_id,
+                COALESCE(SUM(m.monto), 0) as total
+            FROM movimientos m
+            WHERE m.empleado_id IS NOT NULL
+              AND EXTRACT(YEAR FROM m.fecha) = $1
+            GROUP BY m.empleado_id
+            ORDER BY total DESC
+            LIMIT 8
+        `, [añoSeleccionado]);
+        
+        // Obtener nombres de departamentos
+        let deptoLabels = [];
+        let deptoValores = [];
+        for (const d of deptoResult.rows) {
+            const deptoNombre = await bdPrincipal.query(
+                'SELECT nombre FROM departamentos WHERE id = $1', 
+                [d.departamento_id]
+            );
+            deptoLabels.push(deptoNombre.rows[0]?.nombre || 'Sin nombre');
+            deptoValores.push(parseFloat(d.total));
+        }
+        
+        // Obtener nombres de conductores
+        let conductoresNombres = [];
+        let conductoresValores = [];
+        for (const c of conductorResult.rows) {
+            const empleadoNombre = await bdPrincipal.query(
+                'SELECT CONCAT(nombre, \' \', apellido_paterno) as nombre FROM empleados WHERE id = $1',
+                [c.empleado_id]
+            );
+            conductoresNombres.push(empleadoNombre.rows[0]?.nombre || `ID: ${c.empleado_id}`);
+            conductoresValores.push(parseFloat(c.total));
+        }
+        
+        // Calcular totales para las estadísticas
+        const totalAbono = abonoValores.reduce((a, b) => a + b, 0);
+        const totalPresupuesto = presupuestoValores.reduce((a, b) => a + b, 0);
+        const totalSaldo = totalPresupuesto - totalAbono;
+        
+        const response = {
+            meses: meses,
+            mensual: {
+                labels: meses,
+                valores: abonoValores
+            },
+            presupuestoVSMensual: {
+                labels: meses,
+                presupuesto: presupuestoValores,
+                abono: gastadoValores
+            },
+            departamentos: {
+                labels: deptoLabels.length > 0 ? deptoLabels : ['Sin datos'],
+                valores: deptoValores.length > 0 ? deptoValores : [0]
+            },
+            conductores: {
+                labels: conductoresNombres.length > 0 ? conductoresNombres : ['Sin datos'],
+                valores: conductoresValores.length > 0 ? conductoresValores : [0]
+            },
+            totales: {
+                abonoTotal: totalAbono,
+                presupuestoTotal: totalPresupuesto,
+                saldoTotal: totalSaldo
+            }
+        };
+        
+        res.json(response);
+        
+    } catch (error) {
+        console.error('Error en /api/reportes/graficas:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// KPIs Dashboard
+app.get('/api/dashboard/kpis', async (req, res) => {
+    const { anio, mes } = req.query;
+    
+    try {
+        let presupuestoQuery = `SELECT SUM(monto_inicial) as total FROM presupuesto_global WHERE anio = $1`;
+        let abonoQuery = `SELECT SUM(monto) as total FROM movimientos WHERE EXTRACT(YEAR FROM fecha) = $1`;
+        let params = [anio];
+        
+        if (mes && mes !== '0') {
+            presupuestoQuery += ` AND mes = $2`;
+            abonoQuery += ` AND EXTRACT(MONTH FROM fecha) = $2`;
+            params.push(mes);
+        }
+        
+        const presupuesto = await bdGasolina.query(presupuestoQuery, params);
+        const abono = await bdGasolina.query(abonoQuery, params);
+        const unidades = await bdGasolina.query(`SELECT COUNT(*) as total FROM unidades WHERE activo = true`);
+        
+        res.json({
+            totalPresupuesto: parseFloat(presupuesto.rows[0]?.total || 0),
+            totalAbono: parseFloat(abono.rows[0]?.total || 0),
+            totalUnidades: parseInt(unidades.rows[0]?.total || 0)
+        });
+        
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // Iniciar servidor
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
