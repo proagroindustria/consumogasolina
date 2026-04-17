@@ -12,10 +12,12 @@ let movimientoEditando = null;
 
 
 // Variables de paginación
+// Variables de paginación
 let paginaActual = 1;
 let registrosPorPagina = 15;
 let totalPaginas = 1;
 let totalRegistros = 0;
+let busquedaActual = '';
 
 // Mostrar nombre del usuario
 const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
@@ -98,16 +100,20 @@ async function cargarEmpleados() {
     }
 }
 
-async function cargarMovimientos(page = 1, limit = null) {
+async function cargarMovimientos(page = 1, limit = null, search = null) {
     try {
         paginaActual = page;
         if (limit) registrosPorPagina = limit;
+        if (search !== null) busquedaActual = search;
         
-        const url = `${API_URL}/movimientos?page=${paginaActual}&limit=${registrosPorPagina}`;
+        let url = `${API_URL}/movimientos?page=${paginaActual}&limit=${registrosPorPagina}`;
+        if (busquedaActual) {
+            url += `&search=${encodeURIComponent(busquedaActual)}`;
+        }
+        
         const response = await fetch(url);
         const result = await response.json();
         
-        // Verificar si la respuesta tiene paginación (nuevo formato)
         if (result.pagination) {
             todosMovimientos = result.data;
             totalRegistros = result.pagination.total;
@@ -115,7 +121,6 @@ async function cargarMovimientos(page = 1, limit = null) {
             actualizarPaginacion();
             renderTablaMovimientos(todosMovimientos);
         } else {
-            // Si es el formato anterior (sin paginación)
             todosMovimientos = result;
             renderTablaMovimientos(todosMovimientos);
         }
@@ -258,17 +263,18 @@ function inicializarBuscador() {
     });
     
     // Búsqueda en tabla
-    const searchInput = document.getElementById('searchInput');
+    // Búsqueda en tabla con debounce (busca en el servidor)
+let timeoutId;
+const searchInput = document.getElementById('searchInput');
+if (searchInput) {
     searchInput.addEventListener('input', (e) => {
-        const busqueda = e.target.value.toLowerCase();
-        const filtrados = todosMovimientos.filter(m => 
-            (m.unidad_placas && m.unidad_placas.toLowerCase().includes(busqueda)) ||
-            (m.unidad_descripcion && m.unidad_descripcion.toLowerCase().includes(busqueda)) ||
-            (m.tarjeta_numero && m.tarjeta_numero.includes(busqueda)) ||
-            (m.observacion && m.observacion.toLowerCase().includes(busqueda))
-        );
-        renderTablaMovimientos(filtrados);
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            busquedaActual = e.target.value;
+            cargarMovimientos(1, registrosPorPagina, busquedaActual);
+        }, 500);
     });
+}
 }
 
 function mostrarResultados(empleados) {
@@ -400,7 +406,7 @@ async function eliminarMovimiento(id) {
         });
         
         if (response.ok) {
-            await cargarMovimientos();
+            await cargarMovimientos(paginaActual, registrosPorPagina, busquedaActual);
             alert('✅ Movimiento eliminado correctamente');
         } else {
             alert('❌ Error al eliminar');
@@ -450,7 +456,7 @@ document.getElementById('movimientoForm').addEventListener('submit', async (e) =
             successMsg.textContent = movimientoId ? '✅ Movimiento actualizado correctamente' : '✅ Abono registrado correctamente';
             successMsg.classList.add('show');
             document.getElementById('modalAbono').classList.remove('show');
-            await cargarMovimientos();
+             await cargarMovimientos(paginaActual, registrosPorPagina, busquedaActual); 
             
             setTimeout(() => successMsg.classList.remove('show'), 3000);
         } else {

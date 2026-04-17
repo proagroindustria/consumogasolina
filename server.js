@@ -285,13 +285,74 @@ app.post('/api/movimientos', async (req, res) => {
 
 app.get('/api/movimientos', async (req, res) => {
     try {
-        // Obtener parámetros de paginación
+        // Parámetros de paginación
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 15;
         const offset = (page - 1) * limit;
+        const search = req.query.search || '';
+        
+        // 1. Primero, buscar IDs de empleados que coincidan con la búsqueda
+        let empleadosIds = [];
+        let deptosIds = [];
+        
+        if (search) {
+            // Buscar empleados por nombre
+            const empleadosRes = await bdPrincipal.query(`
+                SELECT id FROM empleados 
+                WHERE CONCAT(nombre, ' ', apellido_paterno, ' ', COALESCE(apellido_materno, '')) ILIKE $1
+                LIMIT 50
+            `, [`%${search}%`]);
+            empleadosIds = empleadosRes.rows.map(r => r.id);
+            
+            // Buscar departamentos por nombre
+            const deptosRes = await bdPrincipal.query(`
+                SELECT id FROM departamentos WHERE nombre ILIKE $1 LIMIT 50
+            `, [`%${search}%`]);
+            deptosIds = deptosRes.rows.map(r => r.id);
+        }
+        
+        // 2. Construir WHERE clause para búsqueda
+        let whereClause = '';
+        let queryParams = [];
+        let paramIndex = 1;
+        
+        if (search) {
+            const conditions = [];
+            
+            // Buscar en campos de movimientos
+            conditions.push(`CAST(m.id AS TEXT) ILIKE $${paramIndex}`);
+            conditions.push(`m.observacion ILIKE $${paramIndex}`);
+            conditions.push(`t.numero ILIKE $${paramIndex}`);
+            conditions.push(`u.placas ILIKE $${paramIndex}`);
+            conditions.push(`u.descripcion ILIKE $${paramIndex}`);
+            
+            // Buscar por empleado (conductor)
+            if (empleadosIds.length > 0) {
+                conditions.push(`m.empleado_id = ANY($${paramIndex + 1}::int[])`);
+                queryParams.push(empleadosIds);
+                paramIndex++;
+            }
+            
+            // Buscar por departamento
+            if (deptosIds.length > 0) {
+                conditions.push(`m.departamento_id = ANY($${paramIndex + 1}::int[])`);
+                queryParams.push(deptosIds);
+                paramIndex++;
+            }
+            
+            whereClause = ` AND (${conditions.join(' OR ')})`;
+            queryParams.unshift(`%${search}%`);
+            paramIndex = queryParams.length + 1;
+        }
         
         // Obtener total de registros
-        const totalResult = await bdGasolina.query(`SELECT COUNT(*) as total FROM movimientos`);
+        const totalResult = await bdGasolina.query(`
+            SELECT COUNT(*) as total 
+            FROM movimientos m
+            LEFT JOIN tarjetas t ON m.tarjeta_id = t.id
+            LEFT JOIN unidades u ON m.unidad_id = u.id
+            WHERE 1=1 ${whereClause}
+        `, queryParams);
         const total = parseInt(totalResult.rows[0].total);
         
         // Obtener movimientos con paginación
@@ -303,9 +364,10 @@ app.get('/api/movimientos', async (req, res) => {
             FROM movimientos m
             LEFT JOIN tarjetas t ON m.tarjeta_id = t.id
             LEFT JOIN unidades u ON m.unidad_id = u.id
+            WHERE 1=1 ${whereClause}
             ORDER BY m.fecha DESC
-            LIMIT $1 OFFSET $2
-        `, [limit, offset]);
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `, [...queryParams, limit, offset]);
         
         const movimientos = result.rows;
         
@@ -316,26 +378,26 @@ app.get('/api/movimientos', async (req, res) => {
             });
         }
         
-        // Obtener IDs únicos de empleados y departamentos
-        const empleadosIds = [...new Set(movimientos.map(m => m.empleado_id).filter(id => id))];
-        const deptosIds = [...new Set(movimientos.map(m => m.departamento_id).filter(id => id))];
+        // Obtener IDs únicos de empleados y departamentos (para nombres)
+        const empleadosIdsUnicos = [...new Set(movimientos.map(m => m.empleado_id).filter(id => id))];
+        const deptosIdsUnicos = [...new Set(movimientos.map(m => m.departamento_id).filter(id => id))];
         
         // Mapear nombres de empleados
         let empleadosMap = new Map();
-        if (empleadosIds.length > 0) {
+        if (empleadosIdsUnicos.length > 0) {
             const empleadosRes = await bdPrincipal.query(`
                 SELECT id, CONCAT(nombre, ' ', apellido_paterno, ' ', COALESCE(apellido_materno, '')) as nombre_completo
                 FROM empleados WHERE id = ANY($1::int[])
-            `, [empleadosIds]);
+            `, [empleadosIdsUnicos]);
             empleadosMap = new Map(empleadosRes.rows.map(e => [e.id, e.nombre_completo]));
         }
         
         // Mapear nombres de departamentos
         let deptosMap = new Map();
-        if (deptosIds.length > 0) {
+        if (deptosIdsUnicos.length > 0) {
             const deptosRes = await bdPrincipal.query(`
                 SELECT id, nombre FROM departamentos WHERE id = ANY($1::int[])
-            `, [deptosIds]);
+            `, [deptosIdsUnicos]);
             deptosMap = new Map(deptosRes.rows.map(d => [d.id, d.nombre]));
         }
         
@@ -358,7 +420,7 @@ app.get('/api/movimientos', async (req, res) => {
         
     } catch (error) {
         console.error('Error en GET /api/movimientos:', error);
-        res.status(500).json({ error: 'Error al obtener movimientos' });
+        res.status(500).json({ error: 'Error al obtener movimientos: ' + error.message });
     }
 });
 
