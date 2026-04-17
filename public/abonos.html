@@ -141,6 +141,29 @@
                                 <tr><td colspan="8" class="text-center">Cargando...</td>
                             </tbody>
                         </table>
+
+                        <!-- Paginación -->
+<div class="pagination-container">
+    <div class="pagination-info">
+        Mostrando <span id="desde">0</span> - <span id="hasta">0</span> de <span id="totalRegistros">0</span> registros
+    </div>
+    <div class="pagination-controls">
+        <button id="btnPrimera" class="btn-pagination" disabled>« Primera</button>
+        <button id="btnAnterior" class="btn-pagination" disabled>‹ Anterior</button>
+        <span class="pagina-actual">Página <span id="paginaActual">1</span> de <span id="totalPaginas">1</span></span>
+        <button id="btnSiguiente" class="btn-pagination">Siguiente ›</button>
+        <button id="btnUltima" class="btn-pagination">Última »</button>
+    </div>
+    <div class="pagination-limit">
+        <label>Mostrar:</label>
+        <select id="limitSelect">
+            <option value="10">10</option>
+            <option value="15" selected>15</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+        </select>
+    </div>
+</div>
                     </div>
                 </div>
             </div>

@@ -10,6 +10,13 @@ let todosEmpleados = [];
 let todosMovimientos = [];
 let movimientoEditando = null;
 
+
+// Variables de paginación
+let paginaActual = 1;
+let registrosPorPagina = 15;
+let totalPaginas = 1;
+let totalRegistros = 0;
+
 // Mostrar nombre del usuario
 const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
 document.getElementById('userName').textContent = usuario.nombre || 'Usuario';
@@ -22,6 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await cargarMovimientos();
     inicializarBuscador();
     inicializarModal();
+    inicializarPaginacion();
 });
 
 async function cargarSelects() {
@@ -90,17 +98,97 @@ async function cargarEmpleados() {
     }
 }
 
-async function cargarMovimientos(busqueda = '') {
+async function cargarMovimientos(page = 1, limit = null) {
     try {
-        let url = `${API_URL}/movimientos`;
-        if (busqueda) {
-            url += `?search=${encodeURIComponent(busqueda)}`;
-        }
+        paginaActual = page;
+        if (limit) registrosPorPagina = limit;
+        
+        const url = `${API_URL}/movimientos?page=${paginaActual}&limit=${registrosPorPagina}`;
         const response = await fetch(url);
-        todosMovimientos = await response.json();
-        renderTablaMovimientos(todosMovimientos);
+        const result = await response.json();
+        
+        // Verificar si la respuesta tiene paginación (nuevo formato)
+        if (result.pagination) {
+            todosMovimientos = result.data;
+            totalRegistros = result.pagination.total;
+            totalPaginas = result.pagination.totalPages;
+            actualizarPaginacion();
+            renderTablaMovimientos(todosMovimientos);
+        } else {
+            // Si es el formato anterior (sin paginación)
+            todosMovimientos = result;
+            renderTablaMovimientos(todosMovimientos);
+        }
     } catch (error) {
         console.error('Error:', error);
+    }
+}
+
+
+function actualizarPaginacion() {
+    const desde = (paginaActual - 1) * registrosPorPagina + 1;
+    const hasta = Math.min(paginaActual * registrosPorPagina, totalRegistros);
+    
+    const desdeSpan = document.getElementById('desde');
+    const hastaSpan = document.getElementById('hasta');
+    const totalSpan = document.getElementById('totalRegistros');
+    const paginaActualSpan = document.getElementById('paginaActual');
+    const totalPaginasSpan = document.getElementById('totalPaginas');
+    
+    if (desdeSpan) desdeSpan.textContent = totalRegistros === 0 ? 0 : desde;
+    if (hastaSpan) hastaSpan.textContent = totalRegistros === 0 ? 0 : hasta;
+    if (totalSpan) totalSpan.textContent = totalRegistros;
+    if (paginaActualSpan) paginaActualSpan.textContent = paginaActual;
+    if (totalPaginasSpan) totalPaginasSpan.textContent = totalPaginas;
+    
+    // Actualizar estado de botones
+    const btnPrimera = document.getElementById('btnPrimera');
+    const btnAnterior = document.getElementById('btnAnterior');
+    const btnSiguiente = document.getElementById('btnSiguiente');
+    const btnUltima = document.getElementById('btnUltima');
+    
+    if (btnPrimera) btnPrimera.disabled = paginaActual === 1 || totalPaginas === 0;
+    if (btnAnterior) btnAnterior.disabled = paginaActual === 1 || totalPaginas === 0;
+    if (btnSiguiente) btnSiguiente.disabled = paginaActual === totalPaginas || totalPaginas === 0;
+    if (btnUltima) btnUltima.disabled = paginaActual === totalPaginas || totalPaginas === 0;
+}
+
+function inicializarPaginacion() {
+    const btnPrimera = document.getElementById('btnPrimera');
+    const btnAnterior = document.getElementById('btnAnterior');
+    const btnSiguiente = document.getElementById('btnSiguiente');
+    const btnUltima = document.getElementById('btnUltima');
+    const limitSelect = document.getElementById('limitSelect');
+    
+    if (btnPrimera) {
+        btnPrimera.addEventListener('click', () => {
+            if (paginaActual !== 1) cargarMovimientos(1);
+        });
+    }
+    
+    if (btnAnterior) {
+        btnAnterior.addEventListener('click', () => {
+            if (paginaActual > 1) cargarMovimientos(paginaActual - 1);
+        });
+    }
+    
+    if (btnSiguiente) {
+        btnSiguiente.addEventListener('click', () => {
+            if (paginaActual < totalPaginas) cargarMovimientos(paginaActual + 1);
+        });
+    }
+    
+    if (btnUltima) {
+        btnUltima.addEventListener('click', () => {
+            if (paginaActual !== totalPaginas) cargarMovimientos(totalPaginas);
+        });
+    }
+    
+    if (limitSelect) {
+        limitSelect.addEventListener('change', (e) => {
+            registrosPorPagina = parseInt(e.target.value);
+            cargarMovimientos(1, registrosPorPagina);
+        });
     }
 }
 

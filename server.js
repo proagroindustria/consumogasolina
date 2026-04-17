@@ -285,7 +285,16 @@ app.post('/api/movimientos', async (req, res) => {
 
 app.get('/api/movimientos', async (req, res) => {
     try {
-        // Obtener movimientos
+        // Obtener parámetros de paginación
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 15;
+        const offset = (page - 1) * limit;
+        
+        // Obtener total de registros
+        const totalResult = await bdGasolina.query(`SELECT COUNT(*) as total FROM movimientos`);
+        const total = parseInt(totalResult.rows[0].total);
+        
+        // Obtener movimientos con paginación
         const result = await bdGasolina.query(`
             SELECT m.*, 
                    t.numero as tarjeta_numero,
@@ -295,13 +304,16 @@ app.get('/api/movimientos', async (req, res) => {
             LEFT JOIN tarjetas t ON m.tarjeta_id = t.id
             LEFT JOIN unidades u ON m.unidad_id = u.id
             ORDER BY m.fecha DESC
-            LIMIT 100
-        `);
+            LIMIT $1 OFFSET $2
+        `, [limit, offset]);
         
         const movimientos = result.rows;
         
         if (movimientos.length === 0) {
-            return res.json([]);
+            return res.json({
+                data: [],
+                pagination: { page, limit, total, totalPages: 0 }
+            });
         }
         
         // Obtener IDs únicos de empleados y departamentos
@@ -334,7 +346,15 @@ app.get('/api/movimientos', async (req, res) => {
             departamento_nombre: deptosMap.get(m.departamento_id) || null
         }));
         
-        res.json(movimientosEnriquecidos);
+        res.json({
+            data: movimientosEnriquecidos,
+            pagination: {
+                page: page,
+                limit: limit,
+                total: total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
         
     } catch (error) {
         console.error('Error en GET /api/movimientos:', error);
