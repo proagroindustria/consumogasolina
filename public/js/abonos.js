@@ -333,7 +333,7 @@ function mostrarResultados(empleados) {
 
 function inicializarModal() {
     const modal = document.getElementById('modalAbono');
-    const btnNuevo = document.getElementById('btnNuevoAbono');
+   const btnNuevo = document.getElementById('btnNuevoAbonoHeader') || document.getElementById('btnNuevoAbono');
     const closeBtn = document.querySelector('.modal-close');
     const cancelBtn = document.querySelector('.modal-cancel');
     
