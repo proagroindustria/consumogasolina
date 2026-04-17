@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -131,15 +132,28 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
         }
         
-        res.json({
-            success: true,
-            token: 'token_temporal_' + Date.now(),
-            usuario: {
-                id: usuario.id,
-                nombre: usuario.nombre_completo,
-                trabajo_id: usuario.trabajo_id
-            }
-        });
+        // Generar token JWT real
+const token = jwt.sign(
+    {
+        id: usuario.id,
+        username: usuario.username,
+        empleado_id: usuario.empleado_id,
+        nombre: usuario.nombre_completo,
+        trabajo_id: usuario.trabajo_id
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '8h' }
+);
+
+res.json({
+    success: true,
+    token: token,
+    usuario: {
+        id: usuario.id,
+        nombre: usuario.nombre_completo,
+        trabajo_id: usuario.trabajo_id
+    }
+});
         
     } catch (error) {
         console.error('Error en login:', error);
@@ -228,14 +242,27 @@ app.get('/api/empleados', async (req, res) => {
 app.post('/api/movimientos', async (req, res) => {
     const { fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion } = req.body;
     
-    console.log('📝 Registrando movimiento:', { fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto });
+    // Obtener el ID del usuario desde el token
+    const authHeader = req.headers.authorization;
+    let usuarioRegistraId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            usuarioRegistraId = decoded.id;
+        } catch (error) {
+            console.warn('⚠️ Token inválido o expirado, no se guardará usuario_registra_id');
+        }
+    }
+    
+    console.log('📝 Registrando movimiento:', { fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, usuarioRegistraId });
     
     try {
         const result = await bdGasolina.query(`
-            INSERT INTO movimientos (fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO movimientos (fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion, usuario_registra_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING id
-        `, [fecha, tarjeta_id, unidad_id || null, empleado_id || null, departamento_id || null, monto, observacion || 'normal']);
+        `, [fecha, tarjeta_id, unidad_id || null, empleado_id || null, departamento_id || null, monto, observacion || 'normal', usuarioRegistraId]);
         
         // Actualizar presupuesto
         const mes = new Date(fecha).getMonth() + 1;
@@ -351,14 +378,27 @@ app.put('/api/movimientos/:id', async (req, res) => {
     const { id } = req.params;
     const { fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion } = req.body;
     
+    // Obtener el ID del usuario desde el token
+    const authHeader = req.headers.authorization;
+    let usuarioRegistraId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            usuarioRegistraId = decoded.id;
+        } catch (error) {
+            console.warn('⚠️ Token inválido o expirado');
+        }
+    }
+    
     try {
         const result = await bdGasolina.query(`
             UPDATE movimientos 
             SET fecha = $1, tarjeta_id = $2, unidad_id = $3, empleado_id = $4, 
-                departamento_id = $5, monto = $6, observacion = $7
-            WHERE id = $8
+                departamento_id = $5, monto = $6, observacion = $7, usuario_registra_id = $8
+            WHERE id = $9
             RETURNING id
-        `, [fecha, tarjeta_id, unidad_id || null, empleado_id || null, departamento_id || null, monto, observacion, id]);
+        `, [fecha, tarjeta_id, unidad_id || null, empleado_id || null, departamento_id || null, monto, observacion, usuarioRegistraId, id]);
         
         res.json({ success: true, id: result.rows[0].id });
     } catch (error) {
