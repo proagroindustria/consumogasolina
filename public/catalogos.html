@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogos | GasControl</title>
+    <link rel="stylesheet" href="/css/global.css">
+    <link rel="stylesheet" href="/css/catalogos.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Control Gasolina</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/dashboard.html" class="nav-item">
+                    <span>📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/abonos.html" class="nav-item">
+                    <span>💰</span>
+                    <span>Movimientos</span>
+                </a>
+                <a href="/catalogos.html" class="nav-item active">
+                    <span>📋</span>
+                    <span>Catálogos</span>
+                </a>
+                <a href="/reportes.html" class="nav-item">
+                    <span>📈</span>
+                    <span>Reportes</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="top-bar">
+                <h1 class="page-title">📋 Catálogos</h1>
+                <div class="user-menu">
+                    <span class="user-name" id="userName"></span>
+                    <div class="user-avatar" id="userAvatar">MH</div>
+                    <button id="logoutBtn" class="btn-outline">Salir</button>
+                </div>
+            </div>
+
+            <div class="container">
+                <!-- Pestañas -->
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="unidades">🚗 Unidades</button>
+                    <button class="tab-btn" data-tab="tarjetas">💳 Tarjetas</button>
+                </div>
+
+                <!-- Panel de Unidades -->
+                <div id="tab-unidades" class="tab-panel active">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>🚗 Unidades</h3>
+                            <button id="btnNuevaUnidad" class="btn btn-primary">➕ Nueva Unidad</button>
+                        </div>
+                        <div class="table-container">
+                            <table id="unidadesTable">
+                                <thead>
+                                    <tr><th>ID</th><th>Placas</th><th>Marca</th><th>Modelo</th><th>Descripción</th><th>Tipo</th><th>Activo</th><th>Acciones</th>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="8" class="text-center">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel de Tarjetas -->
+                <div id="tab-tarjetas" class="tab-panel">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>💳 Tarjetas</h3>
+                            <button id="btnNuevaTarjeta" class="btn btn-primary">➕ Nueva Tarjeta</button>
+                        </div>
+                        <div class="table-container">
+                            <table id="tarjetasTable">
+                                <thead>
+                                    <tr><th>ID</th><th>Número</th><th>Alias</th><th>Activa</th><th>Acciones</th>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="5" class="text-center">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para Unidad -->
+    <div id="modalUnidad" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalUnidadTitle">Nueva Unidad</h3>
+                <span class="modal-close close-unidad">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="unidadForm">
+                    <input type="hidden" id="unidad_id">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Placas</label>
+                            <input type="text" id="placas" placeholder="Ej: ABC-123">
+                        </div>
+                        <div class="form-group">
+                            <label>Marca</label>
+                            <input type="text" id="marca" placeholder="Ej: Toyota">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Modelo</label>
+                            <input type="text" id="modelo" placeholder="Ej: Hilux">
+                        </div>
+                        <div class="form-group">
+                            <label>Año</label>
+                            <input type="number" id="anio" placeholder="Ej: 2022">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Serie</label>
+                            <input type="text" id="serie" placeholder="Número de serie">
+                        </div>
+                        <div class="form-group">
+                            <label>Empresa</label>
+                            <input type="text" id="empresa" placeholder="Ej: FORZA ARRENDADORA">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tipo Unidad</label>
+                            <select id="tipo_unidad">
+                                <option value="vehiculo">Vehículo</option>
+                                <option value="maquinaria">Maquinaria</option>
+                                <option value="equipo">Equipo</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo Contrato</label>
+                            <select id="tipo_contrato">
+                                <option value="propia">Propia</option>
+                                <option value="arrendada">Arrendada</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea id="descripcion" rows="2" placeholder="Descripción de la unidad"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Activo</label>
+                        <select id="activo_unidad">
+                            <option value="true">Sí</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <div class="form-buttons">
+                        <button type="submit" class="btn-submit">💾 Guardar</button>
+                        <button type="button" class="btn-reset close-unidad">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Tarjeta -->
+    <div id="modalTarjeta" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTarjetaTitle">Nueva Tarjeta</h3>
+                <span class="modal-close close-tarjeta">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="tarjetaForm">
+                    <input type="hidden" id="tarjeta_id">
+                    <div class="form-group">
+                        <label>Número de Tarjeta *</label>
+                        <input type="text" id="numero" placeholder="Ej: 5062541604198744" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Alias</label>
+                        <input type="text" id="alias" placeholder="Ej: Tarjeta Principal">
+                    </div>
+                    <div class="form-group">
+                        <label>Activa</label>
+                        <select id="activa_tarjeta">
+                            <option value="true">Sí</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <div class="form-buttons">
+                        <button type="submit" class="btn-submit">💾 Guardar</button>
+                        <button type="button" class="btn-reset close-tarjeta">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/catalogos.js"></script>
+</body>
+</html>
