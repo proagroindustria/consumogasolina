@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     inicializarBuscador();
     inicializarModal();
     inicializarPaginacion();
+     inicializarCargaMasiva();  
 });
 
 async function cargarSelects() {
@@ -472,6 +473,88 @@ document.getElementById('movimientoForm').addEventListener('submit', async (e) =
         submitBtn.disabled = false;
     }
 });
+
+
+
+function inicializarCargaMasiva() {
+    const modal = document.getElementById('modalCargaMasiva');
+    const btnCarga = document.getElementById('btnCargaMasiva');
+    const closeBtns = document.querySelectorAll('.close-carga');
+    
+    if (!btnCarga) return;
+    
+    btnCarga.addEventListener('click', () => {
+        modal.classList.add('show');
+    });
+    
+    closeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            modal.classList.remove('show');
+        });
+    });
+    
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('show');
+    });
+    
+    document.getElementById('formCargaMasiva').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('archivoExcel');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            alert('Selecciona un archivo');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('archivo', file);
+        
+        const successDiv = document.getElementById('cargaSuccess');
+        const errorDiv = document.getElementById('cargaError');
+        const progressDiv = document.getElementById('cargaProgress');
+        
+        successDiv.classList.remove('show');
+        errorDiv.classList.remove('show');
+        progressDiv.style.display = 'block';
+        
+        try {
+            const response = await fetch(`${API_URL}/movimientos/carga-masiva`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                successDiv.textContent = `✅ Carga completada: ${result.insertados} de ${result.total} registros insertados`;
+                successDiv.classList.add('show');
+                
+                if (result.errores.length > 0) {
+                    errorDiv.textContent = `⚠️ Errores: ${result.errores.join(', ')}`;
+                    errorDiv.classList.add('show');
+                }
+                
+                await cargarMovimientos(1, registrosPorPagina, '');
+                fileInput.value = '';
+                
+                setTimeout(() => {
+                    modal.classList.remove('show');
+                    progressDiv.style.display = 'none';
+                }, 3000);
+            } else {
+                errorDiv.textContent = `❌ Error: ${result.error}`;
+                errorDiv.classList.add('show');
+            }
+        } catch (error) {
+            errorDiv.textContent = `❌ Error de conexión: ${error.message}`;
+            errorDiv.classList.add('show');
+        }
+    });
+}
+
 
 // Logout
 document.getElementById('logoutBtn').addEventListener('click', () => {

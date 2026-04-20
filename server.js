@@ -1,3 +1,7 @@
+const multer = require('multer');
+const XLSX = require('xlsx');
+const upload = multer({ dest: 'uploads/' });
+
 const jwt = require('jsonwebtoken');
 const express = require('express');
 const cors = require('cors');
@@ -713,6 +717,193 @@ app.get('/api/dashboard/kpis', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+
+
+
+
+// =====================================================
+// CARGA MASIVA DE MOVIMIENTOS
+// =====================================================
+
+// =====================================================
+// CARGA MASIVA DE MOVIMIENTOS (CON NOMBRES)
+// =====================================================
+
+app.post('/api/movimientos/carga-masiva', upload.single('archivo'), async (req, res) => {
+    try {
+        // Verificar token
+        const authHeader = req.headers.authorization;
+        let usuarioRegistraId = null;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            usuarioRegistraId = decoded.id;
+        }
+        
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se recibió ningún archivo' });
+        }
+        
+        // Leer el archivo Excel
+        const workbook = XLSX.readFile(req.file.path);
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const datos = XLSX.utils.sheet_to_json(worksheet);
+        
+        // Pre-cargar catálogos
+        const tarjetasMap = new Map();
+        const tarjetasRes = await bdGasolina.query('SELECT id, numero FROM tarjetas WHERE activa = true');
+        tarjetasRes.rows.forEach(t => {
+            tarjetasMap.set(t.numero, t.id);
+            tarjetasMap.set(String(t.id), t.id);
+        });
+        
+        const unidadesMap = new Map();
+        const unidadesRes = await bdGasolina.query('SELECT id, placas, descripcion FROM unidades WHERE activo = true');
+        unidadesRes.rows.forEach(u => {
+            if (u.placas) unidadesMap.set(u.placas.toLowerCase(), u.id);
+            if (u.descripcion) unidadesMap.set(u.descripcion.toLowerCase(), u.id);
+            unidadesMap.set(String(u.id), u.id);
+        });
+        
+        const empleadosMap = new Map();
+        const empleadosRes = await bdPrincipal.query('SELECT id, trabajo_id, CONCAT(nombre, \' \', apellido_paterno, \' \', COALESCE(apellido_materno, \'\')) as nombre_completo FROM empleados WHERE activo = true');
+        empleadosRes.rows.forEach(e => {
+            if (e.trabajo_id) empleadosMap.set(e.trabajo_id, e.id);
+            if (e.nombre_completo) empleadosMap.set(e.nombre_completo.toLowerCase().trim(), e.id);
+            empleadosMap.set(String(e.id), e.id);
+        });
+        
+        const deptosMap = new Map();
+        const deptosRes = await bdPrincipal.query('SELECT id, nombre FROM departamentos WHERE activo = true');
+        deptosRes.rows.forEach(d => {
+            deptosMap.set(d.nombre.toLowerCase(), d.id);
+            deptosMap.set(String(d.id), d.id);
+        });
+        
+        let insertados = 0;
+        let errores = [];
+        
+        for (let i = 0; i < datos.length; i++) {
+            const row = datos[i];
+            
+            try {
+                // Validar campos obligatorios
+                if (!row.fecha || !row.monto) {
+                    errores.push(`Fila ${i + 2}: Faltan campos obligatorios (fecha, monto)`);
+                    continue;
+                }
+                
+                // 1. Buscar tarjeta por número
+                let tarjeta_id = null;
+                if (row.tarjeta_id) {
+                    const tarjetaValor = String(row.tarjeta_id);
+                    tarjeta_id = tarjetasMap.get(tarjetaValor);
+                    if (!tarjeta_id) {
+                        errores.push(`Fila ${i + 2}: Tarjeta '${tarjetaValor}' no encontrada`);
+                        continue;
+                    }
+                } else {
+                    errores.push(`Fila ${i + 2}: Falta tarjeta`);
+                    continue;
+                }
+                
+                // 2. Buscar unidad por descripción o placas
+                let unidad_id = null;
+                if (row.unidad_id) {
+                    const unidadValor = String(row.unidad_id).toLowerCase();
+                    unidad_id = unidadesMap.get(unidadValor);
+                }
+                
+                // 3. Buscar conductor por nombre
+                let empleado_id = null;
+                if (row.trabajo_id) {
+                    const empleadoValor = String(row.trabajo_id).toLowerCase().trim();
+                    empleado_id = empleadosMap.get(empleadoValor);
+                    if (!empleado_id) {
+                        // Intentar buscar por trabajo_id si no encontró por nombre
+                        const empRes = await bdPrincipal.query(
+                            'SELECT id FROM empleados WHERE trabajo_id = $1',
+                            [row.trabajo_id]
+                        );
+                        if (empRes.rows.length > 0) empleado_id = empRes.rows[0].id;
+                    }
+                }
+                
+                // 4. Buscar departamento por nombre
+                let departamento_id = null;
+                if (row.departamento_nombre) {
+                    const deptoValor = String(row.departamento_nombre).toLowerCase();
+                    departamento_id = deptosMap.get(deptoValor);
+                }
+                
+                // Insertar movimiento
+                await bdGasolina.query(`
+                    INSERT INTO movimientos (fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion, usuario_registra_id)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                `, [
+                    row.fecha,
+                    tarjeta_id,
+                    unidad_id,
+                    empleado_id,
+                    departamento_id,
+                    row.monto,
+                    row.observacion || null,
+                    usuarioRegistraId
+                ]);
+                
+                // Actualizar presupuesto
+                const mes = new Date(row.fecha).getMonth() + 1;
+                const anio = new Date(row.fecha).getFullYear();
+                await bdGasolina.query(`
+                    UPDATE presupuesto_global 
+                    SET monto_restante = monto_restante - $1
+                    WHERE mes = $2 AND anio = $3
+                `, [row.monto, mes, anio]);
+                
+                insertados++;
+                
+            } catch (error) {
+                errores.push(`Fila ${i + 2}: ${error.message}`);
+            }
+        }
+        
+        res.json({
+            success: true,
+            total: datos.length,
+            insertados: insertados,
+            errores: errores
+        });
+        
+    } catch (error) {
+        console.error('Error en carga masiva:', error);
+        res.status(500).json({ error: 'Error al procesar el archivo: ' + error.message });
+    }
+});
+
+// =====================================================
+// DESCARGAR PLANTILLA DE EXCEL
+// =====================================================
+
+app.get('/api/plantilla-movimientos', (req, res) => {
+    const plantilla = [
+        { fecha: '2026-04-17', tarjeta_id: 1, unidad_id: 1, trabajo_id: '707', departamento_nombre: 'SISTEMAS', monto: 5000, observacion: 'Recarga mensual' },
+        { fecha: '2026-04-17', tarjeta_id: 2, unidad_id: 2, trabajo_id: '715', departamento_nombre: 'SERVICIOS GENERALES', monto: 3500, observacion: 'Apoyo unidad' }
+    ];
+    
+    const ws = XLSX.utils.json_to_sheet(plantilla);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
+    
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    
+    res.setHeader('Content-Disposition', 'attachment; filename=plantilla_movimientos.xlsx');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+});
+
+
 // Iniciar servidor
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);

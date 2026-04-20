@@ -43,12 +43,16 @@
             </div>
 
             <div class="container">
-                <!-- Botón para nuevo abono y buscador -->
-               <div class="actions-bar">
-    <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Buscar por unidad, conductor o tarjeta..." class="search-input">
-    </div>
-</div>
+                <!-- Botones de acción -->
+                <div class="actions-bar">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Buscar por unidad, conductor o tarjeta..." class="search-input">
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="/api/plantilla-movimientos" download class="btn-secondary" style="text-decoration: none;">📎 Plantilla</a>
+                        <button id="btnCargaMasiva" class="btn-secondary">📤 Carga Masiva</button>
+                    </div>
+                </div>
 
                 <!-- Modal para registrar/editar abono -->
                 <div id="modalAbono" class="modal">
@@ -61,7 +65,6 @@
                             <form id="movimientoForm">
                                 <input type="hidden" id="movimiento_id">
                                 
-                                <!-- Fila 1: Fecha y Tarjeta -->
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label>Fecha *</label>
@@ -76,24 +79,23 @@
                                 </div>
 
                                 <div class="form-row">
-    <div class="form-group">
-        <label>Conductor</label>
-        <div class="search-container">
-            <input type="text" id="conductorInput" class="search-input" placeholder="🔍 Buscar conductor..." autocomplete="off">
-            <div id="conductorDropdown" class="search-dropdown"></div>
-            <input type="hidden" id="empleado_id">
-        </div>
-    </div>
-    <div class="form-group">
-        <label>Departamento</label>
-        <input type="text" id="departamento_nombre" class="form-control" 
-               style="background-color: #f1f5f9; cursor: default;" 
-               readonly placeholder="Seleccione un conductor">
-        <input type="hidden" id="departamento_id">
-    </div>
-</div>
+                                    <div class="form-group">
+                                        <label>Conductor</label>
+                                        <div class="search-container">
+                                            <input type="text" id="conductorInput" class="search-input" placeholder="🔍 Buscar conductor..." autocomplete="off">
+                                            <div id="conductorDropdown" class="search-dropdown"></div>
+                                            <input type="hidden" id="empleado_id">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Departamento</label>
+                                        <input type="text" id="departamento_nombre" class="form-control" 
+                                               style="background-color: #f1f5f9; cursor: default;" 
+                                               readonly placeholder="Seleccione un conductor">
+                                        <input type="hidden" id="departamento_id">
+                                    </div>
+                                </div>
 
-                                <!-- Fila 3: Unidad y Monto -->
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label>Unidad</label>
@@ -107,13 +109,11 @@
                                     </div>
                                 </div>
 
-                                <!-- Fila 4: Observación -->
                                 <div class="form-group">
                                     <label>Observación</label>
-                                    <textarea id="observacion" rows="2" placeholder="Ej: Apoyo a unidad X, test GITHUB Recarga mensual..."></textarea>
+                                    <textarea id="observacion" rows="2" placeholder="Ej: Apoyo a unidad X, Recarga mensual..."></textarea>
                                 </div>
 
-                                <!-- Botones -->
                                 <div class="form-buttons">
                                     <button type="submit" class="btn-submit">💾 Guardar</button>
                                     <button type="button" class="btn-reset modal-cancel">Cancelar</button>
@@ -126,44 +126,82 @@
                     </div>
                 </div>
 
+                <!-- Modal para carga masiva -->
+                <div id="modalCargaMasiva" class="modal">
+                    <div class="modal-content" style="max-width: 550px;">
+                        <div class="modal-header">
+                            <h3>📤 Carga Masiva de Movimientos</h3>
+                            <span class="modal-close close-carga">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <p>Selecciona un archivo Excel (.xlsx, .xls, .csv) con las siguientes columnas:</p>
+                            <table style="width: 100%; font-size: 0.7rem; margin-bottom: 1rem; border-collapse: collapse;">
+                                <tr style="background: #f1f5f9;"><th style="padding: 5px;">Columna</th><th style="padding: 5px;">Obligatorio</th><th style="padding: 5px;">Ejemplo</th> </tr>
+                                <tr><td style="padding: 5px;">fecha</td><td style="padding: 5px;">✅ Sí</td><td style="padding: 5px;">2026-04-17</td></tr>
+                                <tr><td style="padding: 5px;">tarjeta_id</td><td style="padding: 5px;">✅ Sí</td><td style="padding: 5px;">1</td></tr>
+                                <tr><td style="padding: 5px;">monto</td><td style="padding: 5px;">✅ Sí</td><td style="padding: 5px;">5000.00</td></tr>
+                                <tr><td style="padding: 5px;">unidad_id</td><td style="padding: 5px;">❌ No</td><td style="padding: 5px;">1</td></tr>
+                                <tr><td style="padding: 5px;">trabajo_id</td><td style="padding: 5px;">❌ No</td><td style="padding: 5px;">707</td></tr>
+                                <tr><td style="padding: 5px;">departamento_nombre</td><td style="padding: 5px;">❌ No</td><td style="padding: 5px;">SISTEMAS</td></tr>
+                                <tr><td style="padding: 5px;">observacion</td><td style="padding: 5px;">❌ No</td><td style="padding: 5px;">Recarga mensual</td></tr>
+                            </table>
+                            
+                            <form id="formCargaMasiva" enctype="multipart/form-data">
+                                <div class="form-group">
+                                    <label>Archivo Excel/CSV</label>
+                                    <input type="file" id="archivoExcel" accept=".xlsx,.xls,.csv" required>
+                                </div>
+                                <div class="form-buttons" style="margin-top: 1rem;">
+                                    <button type="submit" class="btn-submit">📤 Subir y Procesar</button>
+                                    <button type="button" class="btn-reset close-carga">Cancelar</button>
+                                </div>
+                            </form>
+                            <div id="cargaProgress" style="display: none; margin-top: 1rem;">
+                                <div id="cargaSuccess" class="success-msg"></div>
+                                <div id="cargaError" class="error-msg"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Tabla de movimientos -->
                 <div class="card">
                     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-    <h3>📋 Historial de Movimientos</h3>
-    <button id="btnNuevoAbonoHeader" class="btn btn-primary" style="margin: 0; padding: 0.5rem 1rem; font-size: 0.8rem;">Nuevo Abono</button>
-</div>
+                        <h3>📋 Historial de Movimientos</h3>
+                        <button id="btnNuevoAbonoHeader" class="btn btn-primary" style="margin: 0; padding: 0.5rem 1rem; font-size: 0.8rem;">Nuevo Abono</button>
+                    </div>
                     <div class="table-container">
                         <table id="movimientosTable">
                             <thead>
                                 <tr><th>Fecha</th><th>Tarjeta</th><th>Unidad</th><th>Conductor</th><th>Departamento</th><th>Monto</th><th>Observación</th><th>Acciones</th>
                             </thead>
                             <tbody>
-                                <tr><td colspan="8" class="text-center">Cargando...</td>
+                                <td><td colspan="8" class="text-center">Cargando...</td> </tr>
                             </tbody>
                         </table>
 
                         <!-- Paginación -->
-<div class="pagination-container">
-    <div class="pagination-info">
-        Mostrando <span id="desde">0</span> - <span id="hasta">0</span> de <span id="totalRegistros">0</span> registros
-    </div>
-    <div class="pagination-controls">
-        <button id="btnPrimera" class="btn-pagination" disabled>« Primera</button>
-        <button id="btnAnterior" class="btn-pagination" disabled>‹ Anterior</button>
-        <span class="pagina-actual">Página <span id="paginaActual">1</span> de <span id="totalPaginas">1</span></span>
-        <button id="btnSiguiente" class="btn-pagination">Siguiente ›</button>
-        <button id="btnUltima" class="btn-pagination">Última »</button>
-    </div>
-    <div class="pagination-limit">
-        <label>Mostrar:</label>
-        <select id="limitSelect">
-            <option value="10">10</option>
-            <option value="15" selected>15</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-        </select>
-    </div>
-</div>
+                        <div class="pagination-container">
+                            <div class="pagination-info">
+                                Mostrando <span id="desde">0</span> - <span id="hasta">0</span> de <span id="totalRegistros">0</span> registros
+                            </div>
+                            <div class="pagination-controls">
+                                <button id="btnPrimera" class="btn-pagination" disabled>« Primera</button>
+                                <button id="btnAnterior" class="btn-pagination" disabled>‹ Anterior</button>
+                                <span class="pagina-actual">Página <span id="paginaActual">1</span> de <span id="totalPaginas">1</span></span>
+                                <button id="btnSiguiente" class="btn-pagination">Siguiente ›</button>
+                                <button id="btnUltima" class="btn-pagination">Última »</button>
+                            </div>
+                            <div class="pagination-limit">
+                                <label>Mostrar:</label>
+                                <select id="limitSelect">
+                                    <option value="10">10</option>
+                                    <option value="15" selected>15</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
