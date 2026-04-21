@@ -52,46 +52,59 @@
                     <button class="tab-btn active" data-tab="unidades">🚗 Unidades</button>
                     <button class="tab-btn" data-tab="tarjetas">💳 Tarjetas</button>
                 </div>
+               
 
-                <!-- Panel de Unidades -->
-                <div id="tab-unidades" class="tab-panel active">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>🚗 Unidades</h3>
-                            <button id="btnNuevaUnidad" class="btn btn-primary">➕ Nueva Unidad</button>
-                        </div>
-                        <div class="table-container">
-                            <table id="unidadesTable">
-                                <thead>
-                                    <tr><th>ID</th><th>Placas</th><th>Marca</th><th>Modelo</th><th>Descripción</th><th>Tipo</th><th>Activo</th><th>Acciones</th>
-                                </thead>
-                                <tbody>
-                                    <tr><td colspan="8" class="text-center">Cargando...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+               <!-- Panel de Unidades -->
+<div id="tab-unidades" class="tab-panel active">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-info">
+                <h3>🚗 Unidades</h3>
+                <div class="stat-badge">
+                    <span class="stat-badge-number" id="totalUnidadesCount">0</span>
+                    <span class="stat-badge-label">registradas</span>
                 </div>
+            </div>
+            <button id="btnNuevaUnidad" class="btn btn-primary">➕ Nueva Unidad</button>
+        </div>
+        <div class="table-container">
+            <table id="unidadesTable">
+                <thead>
+                    <tr><th>ID</th><th>Placas</th><th>Marca</th><th>Modelo</th><th>Descripción</th><th>Tipo</th><th>Activo</th><th>Acciones</th>
+                </thead>
+                <tbody>
+                    <tr><td colspan="8" class="text-center">Cargando...</td>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
-                <!-- Panel de Tarjetas -->
-                <div id="tab-tarjetas" class="tab-panel">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>💳 Tarjetas</h3>
-                            <button id="btnNuevaTarjeta" class="btn btn-primary">➕ Nueva Tarjeta</button>
-                        </div>
-                        <div class="table-container">
-                            <table id="tarjetasTable">
-                                <thead>
-                                    <tr><th>ID</th><th>Número</th><th>Alias</th><th>Activa</th><th>Acciones</th>
-                                </thead>
-                                <tbody>
-                                    <tr><td colspan="5" class="text-center">Cargando...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+<!-- Panel de Tarjetas -->
+<div id="tab-tarjetas" class="tab-panel">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-info">
+                <h3>💳 Tarjetas</h3>
+                <div class="stat-badge">
+                    <span class="stat-badge-number" id="totalTarjetasCount">0</span>
+                    <span class="stat-badge-label">registradas</span>
                 </div>
+            </div>
+            <button id="btnNuevaTarjeta" class="btn btn-primary">➕ Nueva Tarjeta</button>
+        </div>
+        <div class="table-container">
+            <table id="tarjetasTable">
+                <thead>
+                    <tr><th>ID</th><th>Número</th><th>Alias</th><th>Activa</th><th>Acciones</th>
+                </thead>
+                <tbody>
+                    <tr><td colspan="5" class="text-center">Cargando...</td>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
             </div>
         </main>
     </div>

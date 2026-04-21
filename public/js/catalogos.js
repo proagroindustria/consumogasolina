@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await cargarTarjetas();
     inicializarTabs();
     inicializarModales();
+    actualizarContadores();
 });
 
 // =====================================================
@@ -39,6 +40,7 @@ async function cargarUnidades() {
         unidades = await response.json();
         console.log('Unidades cargadas:', unidades.length);
         renderTablaUnidades(unidades);
+        actualizarContadores();
     } catch (error) {
         console.error('Error:', error);
     }
@@ -54,13 +56,14 @@ function renderTablaUnidades(unidades) {
     tbody.innerHTML = '';
     
     if (unidades.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay unidades registradas</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay unidades registradas</td></td>';
         return;
     }
     
-    unidades.forEach(u => {
+    unidades.forEach((u, index) => {
         const row = tbody.insertRow();
-        row.insertCell(0).textContent = u.id;
+        // Mostrar número consecutivo en lugar del ID
+        row.insertCell(0).textContent = index + 1;
         row.insertCell(1).textContent = u.placas || '-';
         row.insertCell(2).textContent = u.marca || '-';
         row.insertCell(3).textContent = u.modelo || '-';
@@ -104,6 +107,7 @@ async function cargarTarjetas() {
         tarjetas = await response.json();
         console.log('Tarjetas cargadas:', tarjetas.length);
         renderTablaTarjetas(tarjetas);
+        actualizarContadores();
     } catch (error) {
         console.error('Error:', error);
     }
@@ -123,9 +127,10 @@ function renderTablaTarjetas(tarjetas) {
         return;
     }
     
-    tarjetas.forEach(t => {
+    tarjetas.forEach((t, index) => {
         const row = tbody.insertRow();
-        row.insertCell(0).textContent = t.id;
+        // Mostrar número consecutivo en lugar del ID
+        row.insertCell(0).textContent = index + 1;
         row.insertCell(1).textContent = t.numero;
         row.insertCell(2).textContent = t.alias || '-';
         row.insertCell(3).innerHTML = `<span class="badge-activo ${t.activa}">${t.activa ? 'Activa' : 'Inactiva'}</span>`;
@@ -165,6 +170,36 @@ function inicializarModales() {
     const btnNuevaUnidad = document.getElementById('btnNuevaUnidad');
     const closeUnidad = document.querySelectorAll('.close-unidad');
     
+    // Actualizar descripción automática al cambiar placas, marca o modelo
+    const placasInput = document.getElementById('placas');
+    const marcaInput = document.getElementById('marca');
+    const modeloInput = document.getElementById('modelo');
+    const descripcionTextarea = document.getElementById('descripcion');
+    
+    function actualizarDescripcion() {
+        const placas = placasInput ? placasInput.value : '';
+        const marca = marcaInput ? marcaInput.value : '';
+        const modelo = modeloInput ? modeloInput.value : '';
+        
+        const descripcionGenerada = generarDescripcionUnidad(placas, marca, modelo);
+        if (descripcionTextarea && descripcionGenerada) {
+            descripcionTextarea.value = descripcionGenerada;
+        }
+    }
+    
+    if (placasInput) {
+        placasInput.addEventListener('input', actualizarDescripcion);
+        placasInput.addEventListener('blur', actualizarDescripcion);
+    }
+    if (marcaInput) {
+        marcaInput.addEventListener('input', actualizarDescripcion);
+        marcaInput.addEventListener('blur', actualizarDescripcion);
+    }
+    if (modeloInput) {
+        modeloInput.addEventListener('input', actualizarDescripcion);
+        modeloInput.addEventListener('blur', actualizarDescripcion);
+    }
+    
     if (btnNuevaUnidad) {
         const newBtn = btnNuevaUnidad.cloneNode(true);
         btnNuevaUnidad.parentNode.replaceChild(newBtn, btnNuevaUnidad);
@@ -175,6 +210,7 @@ function inicializarModales() {
             document.getElementById('modalUnidadTitle').textContent = 'Nueva Unidad';
             document.getElementById('unidadForm').reset();
             document.getElementById('unidad_id').value = '';
+            document.getElementById('descripcion').value = '';
             if (modalUnidad) {
                 modalUnidad.classList.add('show');
             }
@@ -452,7 +488,45 @@ if (tarjetaForm) {
     });
 }
 
-// Logout
+// =====================================================
+// CONTADORES
+// =====================================================
+
+function actualizarContadores() {
+    const totalUnidades = unidades.length;
+    const totalTarjetas = tarjetas.length;
+    
+    const unidadesCountSpan = document.getElementById('totalUnidadesCount');
+    const tarjetasCountSpan = document.getElementById('totalTarjetasCount');
+    
+    if (unidadesCountSpan) unidadesCountSpan.textContent = totalUnidades;
+    if (tarjetasCountSpan) tarjetasCountSpan.textContent = totalTarjetas;
+    
+    console.log(`Contadores actualizados: ${totalUnidades} unidades, ${totalTarjetas} tarjetas`);
+}
+
+// =====================================================
+// FUNCIONES AUXILIARES
+// =====================================================
+
+// Generar descripción automática de la unidad
+function generarDescripcionUnidad(placas, marca, modelo) {
+    if (placas && placas.trim() !== '') {
+        return `${marca || ''} ${modelo || ''} ${placas}`.trim();
+    } else if (marca && modelo) {
+        return `${marca} ${modelo}`.trim();
+    } else if (marca) {
+        return marca;
+    } else if (modelo) {
+        return modelo;
+    }
+    return '';
+}
+
+// =====================================================
+// LOGOUT 
+// =====================================================
+
 const logoutBtn = document.getElementById('logoutBtn');
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {

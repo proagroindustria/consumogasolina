@@ -769,11 +769,19 @@ app.post('/api/movimientos/carga-masiva', upload.single('archivo'), async (req, 
             if (u.descripcion) unidadesMap.set(u.descripcion.toLowerCase(), u.id);
         });
 
-        const empleadosRes = await bdPrincipal.query('SELECT id, trabajo_id, CONCAT(nombre, \' \', apellido_paterno) as nombre FROM empleados WHERE activo = true');
+        // Cargar empleados con nombre completo
+        const empleadosRes = await bdPrincipal.query(`
+            SELECT id, trabajo_id, 
+                   CONCAT(nombre, ' ', apellido_paterno, ' ', COALESCE(apellido_materno, '')) as nombre_completo
+            FROM empleados WHERE activo = true
+        `);
+        
         const empleadosMap = new Map();
         empleadosRes.rows.forEach(e => {
+            // Guardar por trabajo_id
             if (e.trabajo_id) empleadosMap.set(e.trabajo_id, e.id);
-            if (e.nombre) empleadosMap.set(e.nombre.toLowerCase(), e.id);
+            // Guardar por nombre completo en minúsculas
+            if (e.nombre_completo) empleadosMap.set(e.nombre_completo.toLowerCase().trim(), e.id);
         });
 
         const deptosRes = await bdPrincipal.query('SELECT id, nombre FROM departamentos WHERE activo = true');
@@ -789,15 +797,47 @@ app.post('/api/movimientos/carga-masiva', upload.single('archivo'), async (req, 
                     continue;
                 }
 
+                // 1. Buscar tarjeta por número
                 const tarjeta_id = tarjetasMap.get(String(row.tarjeta_id));
                 if (!tarjeta_id) {
                     errores.push(`Fila ${i + 2}: Tarjeta '${row.tarjeta_id}' no encontrada`);
                     continue;
                 }
 
-                const unidad_id = row.unidad_id ? unidadesMap.get(String(row.unidad_id).toLowerCase()) : null;
-                const empleado_id = row.trabajo_id ? empleadosMap.get(String(row.trabajo_id).toLowerCase()) : null;
-                const departamento_id = row.departamento_nombre ? deptosMap.get(String(row.departamento_nombre).toLowerCase()) : null;
+                // 2. Buscar unidad por descripción o placas
+                let unidad_id = null;
+                if (row.unidad_id) {
+                    unidad_id = unidadesMap.get(String(row.unidad_id).toLowerCase());
+                }
+
+                // 3. Buscar empleado por nombre (CON LA CORRECCIÓN)
+                let empleado_id = null;
+                if (row.trabajo_id && row.trabajo_id.trim() !== '') {
+                    const nombreBuscado = String(row.trabajo_id).toLowerCase().trim();
+                    empleado_id = empleadosMap.get(nombreBuscado);
+                    
+                    // Si no se encuentra, intentar búsqueda parcial
+                    if (!empleado_id) {
+                        const empleadoEncontrado = empleadosRes.rows.find(e => 
+                            e.nombre_completo.toLowerCase().includes(nombreBuscado) ||
+                            nombreBuscado.includes(e.nombre_completo.toLowerCase())
+                        );
+                        if (empleadoEncontrado) {
+                            empleado_id = empleadoEncontrado.id;
+                            console.log(`✅ Conductor encontrado por búsqueda parcial: "${row.trabajo_id}" -> ID: ${empleado_id}`);
+                        } else {
+                            console.log(`⚠️ Conductor NO encontrado: "${row.trabajo_id}"`);
+                        }
+                    } else {
+                        console.log(`✅ Conductor encontrado: "${row.trabajo_id}" -> ID: ${empleado_id}`);
+                    }
+                }
+
+                // 4. Buscar departamento por nombre
+                let departamento_id = null;
+                if (row.departamento_nombre) {
+                    departamento_id = deptosMap.get(String(row.departamento_nombre).toLowerCase());
+                }
 
                 await bdGasolina.query(`
                     INSERT INTO movimientos (fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion, usuario_registra_id)
@@ -855,6 +895,9 @@ app.get('/api/unidades-reales', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+
+
 
 // =====================================================
 // INICIAR SERVIDOR
