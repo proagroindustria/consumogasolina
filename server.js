@@ -896,6 +896,136 @@ app.get('/api/unidades-reales', async (req, res) => {
     }
 });
 
+// =====================================================
+// ENDPOINTS DE PRESUPUESTO
+// Agregar estos endpoints en server.js
+// =====================================================
+
+// GET - Historial de presupuestos (con filtros opcionales)
+app.get('/api/presupuesto/historial', async (req, res) => {
+    try {
+        const { anio, mes } = req.query;
+
+        let query = `
+            SELECT id, mes, anio, monto_inicial, monto_restante,
+                   (monto_inicial - monto_restante) AS gastado,
+                   created_at, updated_at
+            FROM presupuesto_global
+            WHERE 1=1
+        `;
+        const params = [];
+        let idx = 1;
+
+        if (anio) { query += ` AND anio = $${idx++}`; params.push(parseInt(anio)); }
+        if (mes)  { query += ` AND mes  = $${idx++}`; params.push(parseInt(mes));  }
+
+        query += ` ORDER BY anio DESC, mes DESC`;
+
+        const result = await bdGasolina.query(query, params);
+        res.json(result.rows);
+
+    } catch (error) {
+        console.error('Error en GET /api/presupuesto/historial:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET - Presupuesto del mes actual (ya existe, pero lo dejamos aquí de referencia)
+// app.get('/api/presupuesto/actual', ...) -- ya está en server.js
+
+// POST - Crear nuevo presupuesto mensual
+app.post('/api/presupuesto', async (req, res) => {
+    const { anio, mes, monto_inicial } = req.body;
+
+    if (!anio || !mes || !monto_inicial) {
+        return res.status(400).json({ error: 'Faltan campos obligatorios: anio, mes, monto_inicial' });
+    }
+
+    try {
+        // Verificar que no exista ya un presupuesto para ese mes/año
+        const existe = await bdGasolina.query(
+            'SELECT id FROM presupuesto_global WHERE mes = $1 AND anio = $2',
+            [mes, anio]
+        );
+
+        if (existe.rows.length > 0) {
+            return res.status(409).json({
+                error: `Ya existe un presupuesto para ese mes y año. Use el endpoint de edición.`
+            });
+        }
+
+        const result = await bdGasolina.query(`
+            INSERT INTO presupuesto_global (mes, anio, monto_inicial, monto_restante)
+            VALUES ($1, $2, $3, $3)
+            RETURNING id
+        `, [mes, anio, monto_inicial]);
+
+        res.json({ success: true, id: result.rows[0].id });
+
+    } catch (error) {
+        console.error('Error en POST /api/presupuesto:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// PUT - Actualizar presupuesto existente
+app.put('/api/presupuesto/:id', async (req, res) => {
+    const { id } = req.params;
+    const { anio, mes, monto_inicial } = req.body;
+
+    try {
+        // Obtener el presupuesto actual para recalcular monto_restante
+        const actual = await bdGasolina.query(
+            'SELECT monto_inicial, monto_restante FROM presupuesto_global WHERE id = $1',
+            [id]
+        );
+
+        if (actual.rows.length === 0) {
+            return res.status(404).json({ error: 'Presupuesto no encontrado' });
+        }
+
+        const { monto_inicial: montoAnterior, monto_restante: restanteAnterior } = actual.rows[0];
+
+        // Calcular cuánto se ha gastado y ajustar el monto_restante con el nuevo monto
+        const gastado = parseFloat(montoAnterior) - parseFloat(restanteAnterior);
+        const nuevoRestante = parseFloat(monto_inicial) - gastado;
+
+        await bdGasolina.query(`
+            UPDATE presupuesto_global
+            SET mes = $1, anio = $2, monto_inicial = $3, monto_restante = $4,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $5
+        `, [mes, anio, monto_inicial, nuevoRestante, id]);
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Error en PUT /api/presupuesto/:id:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE - Eliminar presupuesto
+app.delete('/api/presupuesto/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const result = await bdGasolina.query(
+            'DELETE FROM presupuesto_global WHERE id = $1 RETURNING id',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Presupuesto no encontrado' });
+        }
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Error en DELETE /api/presupuesto/:id:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 
 

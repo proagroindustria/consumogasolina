@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presupuesto | GasControl</title>
+    <link rel="stylesheet" href="/css/global.css">
+    <link rel="stylesheet" href="/css/presupuesto.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Control Gasolina</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/dashboard.html" class="nav-item">
+                    <span>📊</span><span>Dashboard</span>
+                </a>
+                <a href="/abonos.html" class="nav-item">
+                    <span>💰</span><span>Movimientos</span>
+                </a>
+                <a href="/catalogos.html" class="nav-item">
+                    <span>📋</span><span>Catálogos</span>
+                </a>
+                <a href="/presupuesto.html" class="nav-item active">
+                    <span>🎯</span><span>Presupuesto</span>
+                </a>
+                <a href="/reportes.html" class="nav-item">
+                    <span>📈</span><span>Reportes</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="top-bar">
+                <h1 class="page-title">🎯 Presupuesto</h1>
+                <div class="user-menu">
+                    <span class="user-name" id="userName"></span>
+                    <div class="user-avatar" id="userAvatar">MH</div>
+                    <button id="logoutBtn" class="btn-outline">Salir</button>
+                </div>
+            </div>
+
+            <div class="container">
+
+                <!-- KPIs del mes actual -->
+                <div class="kpi-grid" id="kpiActual">
+                    <div class="kpi-card kpi-blue">
+                        <div class="kpi-icon">📅</div>
+                        <div class="kpi-info">
+                            <div class="kpi-title">MES ACTUAL</div>
+                            <div class="kpi-value" id="kpiMesActual">—</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-green">
+                        <div class="kpi-icon">💵</div>
+                        <div class="kpi-info">
+                            <div class="kpi-title">PRESUPUESTO ASIGNADO</div>
+                            <div class="kpi-value" id="kpiAsignado">$0</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-red">
+                        <div class="kpi-icon">💸</div>
+                        <div class="kpi-info">
+                            <div class="kpi-title">TOTAL GASTADO</div>
+                            <div class="kpi-value" id="kpiGastado">$0</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-purple">
+                        <div class="kpi-icon">🏦</div>
+                        <div class="kpi-info">
+                            <div class="kpi-title">SALDO RESTANTE</div>
+                            <div class="kpi-value" id="kpiRestante">$0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barra de progreso del mes actual -->
+                <div class="progress-card" id="progressCard">
+                    <div class="progress-header">
+                        <span class="progress-label">Uso del presupuesto del mes actual</span>
+                        <span class="progress-pct" id="progressPct">0%</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+                    </div>
+                    <div class="progress-footer">
+                        <span id="progressGastado">$0 gastado</span>
+                        <span id="progressTotal">de $0 asignado</span>
+                    </div>
+                </div>
+
+                <!-- Acciones + Historial -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-header-info">
+                            <h3>📆 Historial de Presupuestos</h3>
+                            <div class="stat-badge">
+                                <span class="stat-badge-number" id="totalPresupuestosCount">0</span>
+                                <span class="stat-badge-label">registros</span>
+                            </div>
+                        </div>
+                        <button id="btnNuevoPresupuesto" class="btn btn-primary">➕ Nuevo Presupuesto</button>
+                    </div>
+
+                    <!-- Filtros -->
+                    <div class="filters-row">
+                        <div class="filter-group">
+                            <label>AÑO</label>
+                            <select id="filtroAnio">
+                                <option value="">Todos</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026" selected>2026</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>MES</label>
+                            <select id="filtroMes">
+                                <option value="">Todos</option>
+                                <option value="1">Enero</option>
+                                <option value="2">Febrero</option>
+                                <option value="3">Marzo</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Mayo</option>
+                                <option value="6">Junio</option>
+                                <option value="7">Julio</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Septiembre</option>
+                                <option value="10">Octubre</option>
+                                <option value="11">Noviembre</option>
+                                <option value="12">Diciembre</option>
+                            </select>
+                        </div>
+                        <button id="btnFiltrar" class="btn-filter">🔍 Filtrar</button>
+                        <button id="btnLimpiar" class="btn-clear">✕ Limpiar</button>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="presupuestosTable">
+                            <thead>
+                                <tr>
+                                    <th>AÑO</th>
+                                    <th>MES</th>
+                                    <th>PRESUPUESTO</th>
+                                    <th>GASTADO</th>
+                                    <th>RESTANTE</th>
+                                    <th>USO %</th>
+                                    <th>ESTADO</th>
+                                    <th>ACCIONES</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="8" class="text-center">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Nuevo/Editar Presupuesto -->
+    <div id="modalPresupuesto" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nuevo Presupuesto</h3>
+                <span class="modal-close" id="modalClose">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="presupuestoForm">
+                    <input type="hidden" id="presupuesto_id">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Año *</label>
+                            <select id="anio" required>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026" selected>2026</option>
+                                <option value="2027">2027</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Mes *</label>
+                            <select id="mes" required>
+                                <option value="1">Enero</option>
+                                <option value="2">Febrero</option>
+                                <option value="3">Marzo</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Mayo</option>
+                                <option value="6">Junio</option>
+                                <option value="7">Julio</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Septiembre</option>
+                                <option value="10">Octubre</option>
+                                <option value="11">Noviembre</option>
+                                <option value="12">Diciembre</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Monto Presupuestado *</label>
+                        <div class="input-money">
+                            <span class="input-prefix">$</span>
+                            <input type="number" id="monto_inicial" step="0.01" min="0" placeholder="0.00" required>
+                        </div>
+                    </div>
+                    <div class="form-buttons">
+                        <button type="submit" class="btn-submit">💾 Guardar</button>
+                        <button type="button" class="btn-reset" id="btnCancelar">Cancelar</button>
+                    </div>
+                    <div id="successMsg" class="success-msg"></div>
+                    <div id="errorMsg" class="error-msg"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar Eliminar -->
+    <div id="modalEliminar" class="modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3>⚠️ Confirmar eliminación</h3>
+                <span class="modal-close" id="closeEliminar">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:1.5rem; color:#475569;">¿Estás seguro de eliminar el presupuesto de <strong id="deleteLabel"></strong>? Esta acción no se puede deshacer.</p>
+                <div class="form-buttons">
+                    <button id="btnConfirmarEliminar" class="btn-danger">🗑️ Eliminar</button>
+                    <button id="btnCancelarEliminar" class="btn-reset">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/presupuesto.js"></script>
+</body>
+</html>
