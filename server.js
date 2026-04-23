@@ -1087,7 +1087,131 @@ app.delete('/api/presupuesto/:id', async (req, res) => {
     }
 });
 
-
+// =====================================================
+// EXPORTAR MOVIMIENTOS A EXCEL
+// =====================================================
+app.get('/api/movimientos/exportar-excel', async (req, res) => {
+    try {
+        const { fecha_inicio, fecha_fin, empleado_id, unidad_id } = req.query;
+        
+        // Primero obtener los movimientos de bdGasolina
+        let query = `
+            SELECT 
+                m.id,
+                m.fecha,
+                m.tarjeta_id,
+                m.unidad_id,
+                m.empleado_id,
+                m.departamento_id,
+                m.monto,
+                m.observacion,
+                t.numero as tarjeta_numero,
+                u.placas as unidad_placas,
+                u.descripcion as unidad_descripcion
+            FROM movimientos m
+            LEFT JOIN tarjetas t ON m.tarjeta_id = t.id
+            LEFT JOIN unidades u ON m.unidad_id = u.id
+            WHERE 1=1
+        `;
+        
+        const params = [];
+        let idx = 1;
+        
+        if (fecha_inicio) {
+            query += ` AND m.fecha >= $${idx++}`;
+            params.push(fecha_inicio);
+        }
+        
+        if (fecha_fin) {
+            query += ` AND m.fecha <= $${idx++}`;
+            params.push(fecha_fin);
+        }
+        
+        if (empleado_id) {
+            query += ` AND m.empleado_id = $${idx++}`;
+            params.push(empleado_id);
+        }
+        
+        if (unidad_id) {
+            query += ` AND m.unidad_id = $${idx++}`;
+            params.push(unidad_id);
+        }
+        
+        query += ` ORDER BY m.fecha DESC`;
+        
+        const result = await bdGasolina.query(query, params);
+        const movimientos = result.rows;
+        
+        // Obtener nombres de empleados y departamentos desde bdPrincipal
+        const empleadosIds = [...new Set(movimientos.map(m => m.empleado_id).filter(id => id))];
+        const deptosIds = [...new Set(movimientos.map(m => m.departamento_id).filter(id => id))];
+        
+        let empleadosMap = new Map();
+        if (empleadosIds.length > 0) {
+            const empleadosRes = await bdPrincipal.query(`
+                SELECT id, CONCAT(nombre, ' ', apellido_paterno, ' ', COALESCE(apellido_materno, '')) as nombre_completo
+                FROM empleados WHERE id = ANY($1::int[])
+            `, [empleadosIds]);
+            empleadosMap = new Map(empleadosRes.rows.map(e => [e.id, e.nombre_completo]));
+        }
+        
+        let deptosMap = new Map();
+        if (deptosIds.length > 0) {
+            const deptosRes = await bdPrincipal.query(`
+                SELECT id, nombre FROM departamentos WHERE id = ANY($1::int[])
+            `, [deptosIds]);
+            deptosMap = new Map(deptosRes.rows.map(d => [d.id, d.nombre]));
+        }
+        
+        // Crear hoja de Excel
+        const wsData = [
+            ['FECHA', 'TARJETA', 'UNIDAD', 'DESCRIPCIÓN UNIDAD', 'CONDUCTOR', 'DEPARTAMENTO', 'MONTO', 'OBSERVACIÓN']
+        ];
+        
+        movimientos.forEach(m => {
+            wsData.push([
+                m.fecha ? new Date(m.fecha).toLocaleDateString('es-MX') : '',
+                m.tarjeta_numero || '',
+                m.unidad_placas || '',
+                m.unidad_descripcion || '',
+                empleadosMap.get(m.empleado_id) || '',
+                deptosMap.get(m.departamento_id) || '',
+                m.monto || 0,
+                m.observacion || ''
+            ]);
+        });
+        
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        
+        // Ajustar ancho de columnas
+        ws['!cols'] = [
+            { wch: 12 }, // FECHA
+            { wch: 20 }, // TARJETA
+            { wch: 12 }, // UNIDAD
+            { wch: 25 }, // DESCRIPCIÓN UNIDAD
+            { wch: 30 }, // CONDUCTOR
+            { wch: 25 }, // DEPARTAMENTO
+            { wch: 15 }, // MONTO
+            { wch: 30 }  // OBSERVACIÓN
+        ];
+        
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
+        
+        // Generar archivo
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        
+        // Nombre del archivo con fecha actual
+        const fecha = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        res.setHeader('Content-Disposition', `attachment; filename=movimientos_${fecha}.xlsx`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.send(buffer);
+        
+    } catch (error) {
+        console.error('Error exportando a Excel:', error);
+        res.status(500).json({ error: 'Error al exportar movimientos' });
+    }
+});
 
 // =====================================================
 // INICIAR SERVIDOR

@@ -555,6 +555,21 @@ function inicializarCargaMasiva() {
     });
 }
 
+// Exportar a Excel
+document.getElementById('btnExportarExcel').addEventListener('click', () => {
+    // Puedes agregar filtros opcionales
+    const fecha_inicio = document.getElementById('filtroFechaInicio')?.value || '';
+    const fecha_fin = document.getElementById('filtroFechaFin')?.value || '';
+    
+    let url = `${API_URL}/movimientos/exportar-excel?`;
+    
+    if (fecha_inicio) url += `fecha_inicio=${fecha_inicio}&`;
+    if (fecha_fin) url += `fecha_fin=${fecha_fin}&`;
+    
+    // Abrir en nueva ventana o descargar
+    window.open(url, '_blank');
+}); 
+
 
 // Logout
 document.getElementById('logoutBtn').addEventListener('click', () => {
