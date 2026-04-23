@@ -380,3 +380,42 @@
         font-size: 0.7rem;
     }
 }
+ /* ============================================
+   AGREGAR AL FINAL DE dashboard.css
+   Fix para gráficas horizontales dinámicas
+   ============================================ */
+
+/* Permitir que los contenedores de gráficas horizontales
+   se ajusten dinámicamente sin altura fija */
+.chart-card .chart-container:has(canvas[id="chartDepartamento"]),
+.chart-card .chart-container:has(canvas[id="chartConductor"]) {
+    height: auto !important;
+    min-height: 200px;
+}
+
+/* Fallback para navegadores sin :has() */
+#chartDepartamento,
+#chartConductor {
+    display: block;
+    width: 100% !important;
+}
+
+/* ============================================
+   AGREGAR AL FINAL DE dashboard.css
+   Fix para gráficas horizontales dinámicas
+   ============================================ */
+
+/* Permitir que los contenedores de gráficas horizontales
+   se ajusten dinámicamente sin altura fija */
+.chart-card .chart-container:has(canvas[id="chartDepartamento"]),
+.chart-card .chart-container:has(canvas[id="chartConductor"]) {
+    height: auto !important;
+    min-height: 200px;
+}
+
+/* Fallback para navegadores sin :has() */
+#chartDepartamento,
+#chartConductor {
+    display: block;
+    width: 100% !important;
+}
