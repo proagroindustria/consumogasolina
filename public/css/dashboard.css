@@ -380,20 +380,18 @@
         font-size: 0.7rem;
     }
 }
- /* ============================================
-   AGREGAR AL FINAL DE dashboard.css
-   Fix para gráficas horizontales dinámicas
+
+/* ============================================
+   GRÁFICAS HORIZONTALES - SIN ALTURA FIJA
    ============================================ */
 
-/* Permitir que los contenedores de gráficas horizontales
-   se ajusten dinámicamente sin altura fija */
+/* Permitir que los contenedores de gráficas horizontales se ajusten dinámicamente */
 .chart-card .chart-container:has(canvas[id="chartDepartamento"]),
 .chart-card .chart-container:has(canvas[id="chartConductor"]) {
     height: auto !important;
     min-height: 200px;
 }
 
-/* Fallback para navegadores sin :has() */
 #chartDepartamento,
 #chartConductor {
     display: block;
@@ -401,21 +399,61 @@
 }
 
 /* ============================================
-   AGREGAR AL FINAL DE dashboard.css
-   Fix para gráficas horizontales dinámicas
+   TABLA PRESUPUESTO - ENCABEZADO FIJO
    ============================================ */
 
-/* Permitir que los contenedores de gráficas horizontales
-   se ajusten dinámicamente sin altura fija */
-.chart-card .chart-container:has(canvas[id="chartDepartamento"]),
-.chart-card .chart-container:has(canvas[id="chartConductor"]) {
-    height: auto !important;
-    min-height: 200px;
+/* Contenedor principal */
+#tablaPresupuesto {
+    width: 100%;
+    background: white;
+    border-radius: 0 0 12px 12px;
+    position: relative;
 }
 
-/* Fallback para navegadores sin :has() */
-#chartDepartamento,
-#chartConductor {
-    display: block;
-    width: 100% !important;
+/* Wrapper con scroll - AQUÍ va el overflow */
+#tablaPresupuesto .tabla-wrapper {
+    overflow-x: auto;
+    overflow-y: visible;
+    width: 100%;
+    position: relative;
+}
+
+/* Tabla */
+#tablaPresupuesto .tabla-wrapper table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+}
+
+/* ENCABEZADO FIJO */
+#tablaPresupuesto .tabla-wrapper table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#tablaPresupuesto .tabla-wrapper table thead tr {
+    background: #f8fafc;
+}
+
+/* PRIMERA COLUMNA FIJA (MES) */
+#tablaPresupuesto .tabla-wrapper table th:first-child,
+#tablaPresupuesto .tabla-wrapper table td:first-child {
+    position: sticky;
+    left: 0;
+    background: white;
+    z-index: 5;
+}
+
+/* Encabezado de la primera columna */
+#tablaPresupuesto .tabla-wrapper table th:first-child {
+    background: #f8fafc;
+    z-index: 15;
+}
+
+/* Fila de total - primera columna */
+#tablaPresupuesto .tabla-wrapper table tr:last-child td:first-child {
+    background: #f1f5f9;
 }

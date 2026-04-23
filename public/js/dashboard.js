@@ -22,13 +22,17 @@ function formatearMonto(valor) {
     return `$${valor.toLocaleString()}`;
 }
 
+function formatearMontoCompleto(valor) {
+    if (valor === 0) return '$0';
+    return '$' + valor.toLocaleString('es-MX');
+}
+
 // =====================================================
-// PADDING IZQUIERDO DINÁMICO (fix nombres cortados)
+// PADDING IZQUIERDO DINÁMICO
 // =====================================================
 function calcularPaddingIzquierdo(labels) {
     if (!labels || labels.length === 0) return 200;
     const maxLen = Math.max(...labels.map(l => String(l).length));
-    // ~8.5px por carácter, mínimo 160px, máximo 320px
     return Math.min(Math.max(maxLen * 8.5, 160), 320);
 }
 
@@ -52,8 +56,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function cargarTodosLosDatos() {
-
-     const timestamp = Date.now();
     const anio = document.getElementById('filtroAnio').value;
     const mes  = document.getElementById('filtroMes').value;
 
@@ -65,7 +67,7 @@ async function cargarTodosLosDatos() {
 }
 
 // =====================================================
-// BARRA DE PROGRESO (mes actual fijo)
+// BARRA DE PROGRESO
 // =====================================================
 async function cargarBarraProgreso() {
     try {
@@ -74,7 +76,7 @@ async function cargarBarraProgreso() {
         const anioActual = ahora.getFullYear();
 
         const response = await fetch(
-            `${API_URL}/presupuesto/actual?mes=${mesActual}&anio=${anioActual}`,
+            `${API_URL}/presupuesto/actual?mes=${mesActual}&anio=${anioActual}&_=${Date.now()}`,
             { headers: { 'Authorization': `Bearer ${token}` } }
         );
         const data = await response.json();
@@ -100,7 +102,7 @@ async function cargarBarraProgreso() {
 }
 
 // =====================================================
-// KPIs DE PRESUPUESTO (según filtro)
+// KPIs DE PRESUPUESTO
 // =====================================================
 async function cargarPresupuestoConFiltros(anio, mes) {
     try {
@@ -110,7 +112,7 @@ async function cargarPresupuestoConFiltros(anio, mes) {
         if (mes === '0' || mes === '') {
             periodoTexto = `TOTAL ${anio}`;
             const response = await fetch(
-                `${API_URL}/presupuesto/historial?anio=${anio}`,
+                `${API_URL}/presupuesto/historial?anio=${anio}&_=${Date.now()}`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const presupuestos = await response.json();
@@ -120,7 +122,7 @@ async function cargarPresupuestoConFiltros(anio, mes) {
         } else {
             periodoTexto = `${MESES[parseInt(mes)]} ${anio}`;
             const response = await fetch(
-                `${API_URL}/presupuesto/actual?mes=${mes}&anio=${anio}`,
+                `${API_URL}/presupuesto/actual?mes=${mes}&anio=${anio}&_=${Date.now()}`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const data = await response.json();
@@ -150,7 +152,7 @@ async function cargarPresupuestoConFiltros(anio, mes) {
 async function cargarKPIsGenerales(anio, mes) {
     try {
         const response = await fetch(
-            `${API_URL}/dashboard/kpis?anio=${anio}&mes=${mes}`,
+            `${API_URL}/dashboard/kpis?anio=${anio}&mes=${mes}&_=${Date.now()}`,
             { headers: { 'Authorization': `Bearer ${token}` } }
         );
         const data = await response.json();
@@ -166,7 +168,7 @@ async function cargarKPIsGenerales(anio, mes) {
 async function cargarGraficas(anio, mes) {
     try {
         const response = await fetch(
-            `${API_URL}/reportes/graficas?anio=${anio}&mes=${mes}`,
+            `${API_URL}/reportes/graficas?anio=${anio}&mes=${mes}&_=${Date.now()}`,
             { headers: { 'Authorization': `Bearer ${token}` } }
         );
         const data = await response.json();
@@ -221,134 +223,127 @@ async function cargarGraficas(anio, mes) {
             }
         });
 
-        
-     // ============================================
-// GRÁFICA 2: PRESUPUESTO VS ABONO (TABLA SIN ABREVIAR)
-// ============================================
-
-// Ocultar el canvas de la gráfica
-const canvas = document.getElementById('chartPresupuesto');
-canvas.style.display = 'none';
-
-// Obtener el contenedor padre
-const parentCard = canvas.closest('.chart-card');
-if (parentCard) {
-    parentCard.style.overflowX = 'auto';
-    parentCard.style.overflowY = 'visible';
-    parentCard.style.padding = '0';
-}
-
-// Crear contenedor de la tabla
-let tablaContainer = document.getElementById('tablaPresupuesto');
-if (!tablaContainer) {
-    tablaContainer = document.createElement('div');
-    tablaContainer.id = 'tablaPresupuesto';
-    canvas.parentElement.insertBefore(tablaContainer, canvas);
-}
-
-tablaContainer.style.cssText = `
-    width: 100%;
-    overflow-x: auto;
-    overflow-y: visible;
-    background: white;
-    border-radius: 0 0 12px 12px;
-    padding: 0;
-    margin: 0;
-`;
-
-// FORZAR 12 MESES COMPLETOS
-const MESES_COMPLETOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-
-// Crear arrays de 12 posiciones
-const presupuestosCompletos = new Array(12).fill(0);
-const abonosCompletos = new Array(12).fill(0);
-
-// Llenar con los datos que vienen de la API
-const mesesAPI = data.presupuestoVSMensual.labels;
-const presupuestosAPI = data.presupuestoVSMensual.presupuesto;
-const abonosAPI = data.presupuestoVSMensual.abono;
-
-for (let i = 0; i < mesesAPI.length; i++) {
-    const mes = mesesAPI[i];
-    const idx = MESES_COMPLETOS.indexOf(mes);
-    if (idx !== -1) {
-        presupuestosCompletos[idx] = presupuestosAPI[i];
-        abonosCompletos[idx] = abonosAPI[i];
-    }
-}
-
-// Función para formatear montos COMPLETOS (sin abreviar)
-function formatearMontoCompleto(valor) {
-    if (valor === 0) return '$0';
-    return '$' + valor.toLocaleString('es-MX');
-}
-
-// Construir la tabla SIMPLIFICADA (sin USO %, sin ESTADO, sin abreviar)
-let tablaHTML = `
-    <table style="width: max-content; min-width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 0.75rem;">
-        <thead>
-            <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                <th style="position: sticky; left: 0; background: #f8fafc; padding: 0.75rem 0.75rem; text-align: left; font-weight: 700; color: #475569; min-width: 70px;">MES</th>
-                <th style="padding: 0.75rem 0.75rem; text-align: center; font-weight: 700; color: #475569; min-width: 130px;">PRESUPUESTO</th>
-                <th style="padding: 0.75rem 0.75rem; text-align: center; font-weight: 700; color: #475569; min-width: 130px;">ABONO</th>
-                <th style="padding: 0.75rem 0.75rem; text-align: center; font-weight: 700; color: #475569; min-width: 130px;">SALDO</th>
-            </tr>
-        </thead>
-        <tbody>
-`;
-
-for (let i = 0; i < MESES_COMPLETOS.length; i++) {
-    const mes = MESES_COMPLETOS[i];
-    const pres = presupuestosCompletos[i];
-    const abono = abonosCompletos[i];
-    const saldo = pres - abono;
-    const saldoClass = saldo >= 0 ? 'color: #10b981;' : 'color: #ef4444;';
-    
-    tablaHTML += `
-        <tr style="border-bottom: 1px solid #f1f5f9;">
-            <td style="position: sticky; left: 0; background: white; padding: 0.6rem 0.75rem; text-align: left; font-weight: 700; color: #1e293b;">${mes}</td>
-            <td style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600;">${formatearMontoCompleto(pres)}</td>
-            <td style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600;">${formatearMontoCompleto(abono)}</td>
-            <td style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600; ${saldoClass}">${saldo >= 0 ? formatearMontoCompleto(saldo) : `⚠️ ${formatearMontoCompleto(Math.abs(saldo))}`}</td>
-        </tr>
-    `;
-}
-
-// Totales
-const totalPresupuesto = presupuestosCompletos.reduce((a, b) => a + b, 0);
-const totalAbono = abonosCompletos.reduce((a, b) => a + b, 0);
-const totalSaldo = totalPresupuesto - totalAbono;
-
-tablaHTML += `
-        <tr style="background: #f1f5f9; font-weight: 700; border-top: 2px solid #cbd5e1;">
-            <td style="position: sticky; left: 0; background: #f1f5f9; padding: 0.75rem 0.75rem; text-align: left;">TOTAL</td>
-            <td style="padding: 0.75rem 0.75rem; text-align: center;">${formatearMontoCompleto(totalPresupuesto)}</td>
-            <td style="padding: 0.75rem 0.75rem; text-align: center;">${formatearMontoCompleto(totalAbono)}</td>
-            <td style="padding: 0.75rem 0.75rem; text-align: center; ${totalSaldo >= 0 ? 'color: #10b981;' : 'color: #ef4444;'}">${totalSaldo >= 0 ? formatearMontoCompleto(totalSaldo) : `⚠️ ${formatearMontoCompleto(Math.abs(totalSaldo))}`}</td>
-        </tr>
-    </tbody>
-</table>
-<div style="text-align: center; font-size: 0.65rem; color: #94a3b8; padding: 0.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0;">
-    ←→ Desliza para ver todos los meses (ENE - DIC)
-</div>
-`;
-
-tablaContainer.innerHTML = tablaHTML;
-tablaContainer.style.display = 'block';
-
-if (chartPresupuesto) {
-    chartPresupuesto.destroy();
-    chartPresupuesto = null;
-}
         // ============================================
-        // GRÁFICA 3: ABONO POR DEPARTAMENTO — FIX
+        // GRÁFICA 2: PRESUPUESTO VS ABONO (TABLA CON ENCABEZADO FIJO)
+        // ============================================
+        
+        // Ocultar el canvas de la gráfica
+        const canvas = document.getElementById('chartPresupuesto');
+        canvas.style.display = 'none';
+
+        // Obtener el contenedor padre
+        const parentCard = canvas.closest('.chart-card');
+        if (parentCard) {
+            parentCard.style.overflowX = 'auto';
+            parentCard.style.overflowY = 'visible';
+            parentCard.style.padding = '0';
+        }
+
+        // Crear contenedor de la tabla
+        let tablaContainer = document.getElementById('tablaPresupuesto');
+        if (!tablaContainer) {
+            tablaContainer = document.createElement('div');
+            tablaContainer.id = 'tablaPresupuesto';
+            canvas.parentElement.insertBefore(tablaContainer, canvas);
+        }
+
+        tablaContainer.style.cssText = `
+            width: 100%;
+            background: white;
+            border-radius: 0 0 12px 12px;
+            padding: 0;
+            margin: 0;
+        `;
+
+        // FORZAR 12 MESES COMPLETOS
+        const MESES_COMPLETOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
+        // Crear arrays de 12 posiciones
+        const presupuestosCompletos = new Array(12).fill(0);
+        const abonosCompletos = new Array(12).fill(0);
+
+        // Llenar con los datos que vienen de la API
+        const mesesAPI = data.presupuestoVSMensual.labels;
+        const presupuestosAPI = data.presupuestoVSMensual.presupuesto;
+        const abonosAPI = data.presupuestoVSMensual.abono;
+
+        for (let i = 0; i < mesesAPI.length; i++) {
+            const mesNombre = mesesAPI[i];
+            const idx = MESES_COMPLETOS.indexOf(mesNombre);
+            if (idx !== -1) {
+                presupuestosCompletos[idx] = presupuestosAPI[i];
+                abonosCompletos[idx] = abonosAPI[i];
+            }
+        }
+
+        // Construir la tabla con wrapper para scroll
+        let tablaHTML = `
+            <div class="tabla-wrapper" style="overflow-x: auto; width: 100%;">
+                <table style="width: max-content; min-width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 0.75rem;">
+                    <thead>
+                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                            <th style="position: sticky; left: 0; background: #f8fafc; padding: 0.75rem 0.75rem; text-align: left; font-weight: 700; color: #475569; min-width: 70px; z-index: 15;">MES</th>
+                            <th style="padding: 0.75rem 0.75rem; text-align: center; font-weight: 700; color: #475569; min-width: 130px;">PRESUPUESTO</th>
+                            <th style="padding: 0.75rem 0.75rem; text-align: center; font-weight: 700; color: #475569; min-width: 130px;">ABONO</th>
+                            <th style="padding: 0.75rem 0.75rem; text-align: center; font-weight: 700; color: #475569; min-width: 130px;">SALDO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        for (let i = 0; i < MESES_COMPLETOS.length; i++) {
+            const mesNombre = MESES_COMPLETOS[i];
+            const pres = presupuestosCompletos[i];
+            const abono = abonosCompletos[i];
+            const saldo = pres - abono;
+            const saldoClass = saldo >= 0 ? 'color: #000000;' : 'color: #ef4444;';
+            
+            tablaHTML += `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="position: sticky; left: 0; background: white; padding: 0.6rem 0.75rem; text-align: left; font-weight: 700; color: #1e293b; z-index: 5;">${mesNombre}</td>
+                    <td style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600;">${formatearMontoCompleto(pres)}</td>
+                    <td style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600;">${formatearMontoCompleto(abono)}</td>
+                    <td style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600; ${saldoClass}" ${saldo < 0 ? 'title="⚠️ Sobrepasó el presupuesto"' : ''}>${formatearMontoCompleto(saldo)}</td>
+                </tr>
+            `;
+        }
+
+        // Totales
+        const totalPresupuesto = presupuestosCompletos.reduce((a, b) => a + b, 0);
+        const totalAbono = abonosCompletos.reduce((a, b) => a + b, 0);
+        const totalSaldo = totalPresupuesto - totalAbono;
+
+        tablaHTML += `
+                    <tr style="background: #f1f5f9; font-weight: 700; border-top: 2px solid #cbd5e1;">
+                        <td style="position: sticky; left: 0; background: #f1f5f9; padding: 0.75rem 0.75rem; text-align: left; z-index: 5;">TOTAL</td>
+                        <td style="padding: 0.75rem 0.75rem; text-align: center;">${formatearMontoCompleto(totalPresupuesto)}</td>
+                        <td style="padding: 0.75rem 0.75rem; text-align: center;">${formatearMontoCompleto(totalAbono)}</td>
+                        <td style="padding: 0.75rem 0.75rem; text-align: center; ${totalSaldo >= 0 ? 'color: #10b981;' : 'color: #ef4444;'}">${totalSaldo >= 0 ? formatearMontoCompleto(totalSaldo) : `⚠️ ${formatearMontoCompleto(Math.abs(totalSaldo))}`}</td>
+                    </tr>
+                </tbody>
+            </table>
+            </div>
+            <div style="text-align: center; font-size: 0.65rem; color: #94a3b8; padding: 0.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                ←→ Desliza para ver todos los meses (ENE - DIC)
+            </div>
+        `;
+
+        tablaContainer.innerHTML = tablaHTML;
+        tablaContainer.style.display = 'block';
+
+        if (chartPresupuesto) {
+            chartPresupuesto.destroy();
+            chartPresupuesto = null;
+        }
+
+        // ============================================
+        // GRÁFICA 3: ABONO POR DEPARTAMENTO
         // ============================================
         const cantDeptos  = data.departamentos.labels.length;
         const alturaDeptos = Math.max(cantDeptos * 38 + 40, 200);
         const maxDepto     = Math.max(...data.departamentos.valores, 1);
         const padLeftDepto = calcularPaddingIzquierdo(data.departamentos.labels);
 
-        // Reemplazar canvas y esperar un frame antes de dibujar
         if (chartDepartamento) { chartDepartamento.destroy(); chartDepartamento = null; }
         const oldCanvasDepto = document.getElementById('chartDepartamento');
         const newCanvasDepto = document.createElement('canvas');
@@ -357,7 +352,7 @@ if (chartPresupuesto) {
         oldCanvasDepto.parentElement.style.width  = '100%';
         oldCanvasDepto.parentElement.replaceChild(newCanvasDepto, oldCanvasDepto);
 
-        await new Promise(r => setTimeout(r, 50)); // esperar un frame
+        await new Promise(r => setTimeout(r, 50));
 
         chartDepartamento = new Chart(newCanvasDepto, {
             type: 'bar',
@@ -371,7 +366,7 @@ if (chartPresupuesto) {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,      // ← permite altura libre
+                maintainAspectRatio: false,
                 indexAxis: 'y',
                 plugins: {
                     legend: { display: false },
@@ -390,41 +385,26 @@ if (chartPresupuesto) {
                     }
                 },
                 scales: {
-                    x: {
-                        display: false,
-                        grid: { display: false },
-                        min: 0,
-                        max: maxDepto * 1.3
-                    },
+                    x: { display: false, grid: { display: false }, min: 0, max: maxDepto * 1.3 },
                     y: {
-                        afterFit(axis) {
-                            axis.width = padLeftDepto; // forzar ancho exacto
-                        },
-                        ticks: {
-                            font: { size: 11, weight: '500' },
-                            color: '#334155',
-                            autoSkip: false,
-                            mirror: false
-                        },
+                        afterFit(axis) { axis.width = padLeftDepto; },
+                        ticks: { font: { size: 11, weight: '500' }, color: '#334155', autoSkip: false, mirror: false },
                         grid: { display: false }
                     }
                 },
-                layout: {
-                    padding: { left: 0, right: 75, top: 5, bottom: 5 }
-                },
+                layout: { padding: { left: 0, right: 75, top: 5, bottom: 5 } },
                 elements: { bar: { borderRadius: 0, barPercentage: 0.75, categoryPercentage: 0.9 } }
             }
         });
 
         // ============================================
-        // GRÁFICA 4: ABONO POR CONDUCTOR — FIX
+        // GRÁFICA 4: ABONO POR CONDUCTOR
         // ============================================
         const cantCond    = data.conductores.labels.length;
         const alturaCond  = Math.max(cantCond * 36 + 40, 200);
         const maxCond     = Math.max(...data.conductores.valores, 1);
         const padLeftCond = calcularPaddingIzquierdo(data.conductores.labels);
 
-        // Reemplazar canvas y esperar un frame antes de dibujar
         if (chartConductor) { chartConductor.destroy(); chartConductor = null; }
         const oldCanvasCond = document.getElementById('chartConductor');
         const newCanvasCond = document.createElement('canvas');
@@ -433,7 +413,7 @@ if (chartPresupuesto) {
         oldCanvasCond.parentElement.style.width  = '100%';
         oldCanvasCond.parentElement.replaceChild(newCanvasCond, oldCanvasCond);
 
-        await new Promise(r => setTimeout(r, 50)); // esperar un frame
+        await new Promise(r => setTimeout(r, 50));
 
         chartConductor = new Chart(newCanvasCond, {
             type: 'bar',
@@ -447,7 +427,7 @@ if (chartPresupuesto) {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,      // ← permite altura libre
+                maintainAspectRatio: false,
                 indexAxis: 'y',
                 plugins: {
                     legend: { display: false },
@@ -466,28 +446,14 @@ if (chartPresupuesto) {
                     }
                 },
                 scales: {
-                    x: {
-                        display: false,
-                        grid: { display: false },
-                        min: 0,
-                        max: maxCond * 1.3
-                    },
+                    x: { display: false, grid: { display: false }, min: 0, max: maxCond * 1.3 },
                     y: {
-                        afterFit(axis) {
-                            axis.width = padLeftCond; // forzar ancho exacto
-                        },
-                        ticks: {
-                            font: { size: 11, weight: '500' },
-                            color: '#334155',
-                            autoSkip: false,
-                            mirror: false
-                        },
+                        afterFit(axis) { axis.width = padLeftCond; },
+                        ticks: { font: { size: 11, weight: '500' }, color: '#334155', autoSkip: false, mirror: false },
                         grid: { display: false }
                     }
                 },
-                layout: {
-                    padding: { left: 0, right: 75, top: 5, bottom: 5 }
-                },
+                layout: { padding: { left: 0, right: 75, top: 5, bottom: 5 } },
                 elements: { bar: { borderRadius: 0, barPercentage: 0.75, categoryPercentage: 0.9 } }
             }
         });
@@ -502,7 +468,7 @@ if (chartPresupuesto) {
 // =====================================================
 async function cargarUltimosMovimientos() {
     try {
-        const response = await fetch(`${API_URL}/movimientos?limit=10`, {
+        const response = await fetch(`${API_URL}/movimientos?limit=10&_=${Date.now()}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const result = await response.json();
@@ -533,11 +499,8 @@ function renderTablaMovimientos(movimientos) {
     });
 }
 
-
-
 // =====================================================
 // DETECTAR CUANDO LA PÁGINA SE VUELVE VISIBLE
-// (para actualizar datos después de volver de abonos/presupuesto)
 // =====================================================
 document.addEventListener('visibilitychange', function() {
     if (!document.hidden) {
@@ -546,13 +509,13 @@ document.addEventListener('visibilitychange', function() {
     }
 });
 
-// También detectar cuando se usa el botón "atrás" del navegador
 window.addEventListener('pageshow', function(event) {
     if (event.persisted) {
         console.log('🔄 Página recuperada del caché - Recargando datos...');
         cargarTodosLosDatos();
     }
 });
+
 // =====================================================
 // LOGOUT
 // =====================================================
@@ -561,4 +524,3 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.removeItem('usuario');
     window.location.href = '/login.html';
 });
-// (archivo ya completo)
