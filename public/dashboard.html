@@ -6,7 +6,9 @@
     <title>Dashboard | GasControl</title>
     <link rel="stylesheet" href="/css/global.css">
     <link rel="stylesheet" href="/css/dashboard.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Agregar después de Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
     <div class="dashboard">
@@ -24,18 +26,13 @@
                     <span>💰</span>
                     <span>Movimientos</span>
                 </a>
-
                 <a href="/catalogos.html" class="nav-item">
-    <span>📋</span>
-    <span>Catálogos</span>
-</a>
-  <a href="/presupuesto.html" class="nav-item active">
-                    <span>🎯</span><span>Presupuesto</span>
+                    <span>📋</span>
+                    <span>Catálogos</span>
                 </a>
-
-                <a href="/reportes.html" class="nav-item">
-                    <span>📈</span>
-                    <span>Reportes</span>
+                <a href="/presupuesto.html" class="nav-item">
+                    <span>🎯</span>
+                    <span>Historial de Presupuestos</span>
                 </a>
             </nav>
         </aside>
@@ -43,7 +40,7 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="top-bar">
-                <h1 class="page-title">Dashboard</h1>
+                <h1 class="page-title">Dashboard Ejecutivo</h1>
                 <div class="user-menu">
                     <span class="user-name" id="userName"></span>
                     <div class="user-avatar" id="userAvatar">MH</div>
@@ -52,13 +49,15 @@
             </div>
 
             <div class="container">
-                <!-- Filtros -->
+                <!-- Filtros de año/mes -->
                 <div class="filters-bar">
                     <div class="filter-group">
                         <label>AÑO</label>
                         <select id="filtroAnio">
+                            <option value="2024">2024</option>
                             <option value="2025">2025</option>
                             <option value="2026" selected>2026</option>
+                            <option value="2027">2027</option>
                         </select>
                     </div>
                     <div class="filter-group">
@@ -82,92 +81,98 @@
                     <button id="btnFiltrar" class="btn-filter">APLICAR FILTRO</button>
                 </div>
 
-                <!-- KPIs Cards -->
-                <div class="kpi-grid">
-                    <div class="kpi-card">
-                        <div class="kpi-title">TOTAL PRESUPUESTO</div>
-                        <div class="kpi-value" id="totalPresupuesto">$0</div>
+                <!-- KPIs del Presupuesto del mes -->
+                <div class="kpi-grid" id="kpiPresupuesto">
+                    <div class="kpi-card kpi-blue">
+                        <div class="kpi-icon">💰</div>
+                        <div class="kpi-info">
+                            <div class="kpi-title">PRESUPUESTO</div>
+                            <div class="kpi-value" id="kpiAsignado">$0</div>
+                            <div class="kpi-periodo" id="kpiPeriodo">—</div>
+                        </div>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-title">TOTAL ABONO</div>
-                        <div class="kpi-value" id="totalAbono">$0</div>
+                    <div class="kpi-card kpi-red">
+                        <div class="kpi-icon">💸</div>
+                        <div class="kpi-info">
+                            <div class="kpi-title">GASTADO</div>
+                            <div class="kpi-value" id="kpiGastado">$0</div>
+                        </div>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-title">TOTAL SALDO</div>
-                        <div class="kpi-value" id="totalSaldo">$0</div>
+                    <div class="kpi-card kpi-green">
+                        <div class="kpi-icon">🏦</div>
+                        <div class="kpi-info">
+                            <div class="kpi-title">SALDO RESTANTE</div>
+                            <div class="kpi-value" id="kpiRestante">$0</div>
+                        </div>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-title">TOTAL UNIDADES</div>
-                        <div class="kpi-value" id="totalUnidades">0</div>
+                    <div class="kpi-card kpi-purple">
+                        <div class="kpi-icon">🚗</div>
+                        <div class="kpi-info">
+                            <div class="kpi-title">UNIDADES ACTIVAS</div>
+                            <div class="kpi-value" id="totalUnidades">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barra de progreso del presupuesto -->
+                <div class="progress-card">
+                    <div class="progress-header">
+                        <span class="progress-label">Uso del presupuesto del mes</span>
+                        <span class="progress-pct" id="progressPct">0%</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+                    </div>
+                    <div class="progress-footer">
+                        <span id="progressGastado">$0 gastado</span>
+                        <span id="progressTotal">de $0 asignado</span>
                     </div>
                 </div>
 
                 <!-- Gráficas 2x2 -->
                 <div class="charts-grid">
                     <!-- Gráfica 1: Abono Mensual -->
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h3>📊 ABONO MENSUAL</h3>
-                            <div class="chart-stats">
-                                <span class="stat-badge">💰 ABONO: <strong id="abonoTotal">$0</strong></span>
-                            </div>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="chartMensual"></canvas>
-                        </div>
-                    </div>
+<div class="chart-card">
+    <div class="chart-header">
+        <h3>📊 ABONO MENSUAL</h3>
+    </div>
+    <div class="chart-container">
+        <canvas id="chartMensual"></canvas>
+    </div>
+</div>
 
-                    <!-- Gráfica 2: Presupuesto vs Abono -->
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h3>💰 PRESUPUESTO MENSUAL VS ABONO</h3>
-                            <div class="chart-stats">
-                                <span class="stat-badge">💸 ABONO: <strong id="abonoPresupuesto">$0</strong></span>
-                                <span class="stat-badge">💵 SALDO: <strong id="saldoPresupuesto">$0</strong></span>
-                            </div>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="chartPresupuesto"></canvas>
-                        </div>
-                    </div>
+<!-- Gráfica 2: Presupuesto vs Abono -->
+<div class="chart-card">
+    <div class="chart-header">
+        <h3>💰 PRESUPUESTO VS ABONO</h3>
+    </div>
+    <div class="chart-container">
+        <canvas id="chartPresupuesto"></canvas>
+    </div>
+</div>
 
-                    <!-- Gráfica 3: Abono por Departamento -->
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h3>🏢 ABONO POR DEPARTAMENTO</h3>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="chartDepartamento"></canvas>
-                        </div>
-                    </div>
+<!-- Gráfica 3: Abono por Departamento -->
+<div class="chart-card">
+    <div class="chart-header">
+        <h3>🏢 ABONO POR DEPARTAMENTO</h3>
+    </div>
+    <div class="chart-container">
+        <canvas id="chartDepartamento"></canvas>
+    </div>
+</div>
 
-                    <!-- Gráfica 4: Abono por Conductor -->
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h3>👤 ABONO POR CONDUCTOR</h3>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="chartConductor"></canvas>
-                        </div>
-                    </div>
+<!-- Gráfica 4: Abono por Conductor -->
+<div class="chart-card">
+    <div class="chart-header">
+        <h3>👤 ABONO POR CONDUCTOR</h3>
+    </div>
+    <div class="chart-container">
+        <canvas id="chartConductor"></canvas>
+    </div>
+</div>
                 </div>
 
-                <!-- Últimos Movimientos -->
-                <div class="movimientos-section">
-                    <div class="section-header">
-                        <h3>📋 ÚLTIMOS MOVIMIENTOS</h3>
-                    </div>
-                    <div class="table-container">
-                        <table id="movimientosTable">
-                            <thead>
-                                <tr><th>FECHA</th><th>TARJETA</th><th>UNIDAD</th><th>MONTO</th><th>OBSERVACIÓN</th>\\
-                            </thead>
-                            <tbody>
-                                <tr><td colspan="5" class="text-center">Cargando...</td>\\
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+             
             </div>
         </main>
     </div>

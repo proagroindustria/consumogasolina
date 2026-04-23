@@ -1,431 +1,109 @@
-/* Stats Cards */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-.stat-card {
-    background: white;
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    box-shadow: var(--shadow);
-    transition: all 0.3s ease;
-    border: 1px solid rgba(0,0,0,0.03);
-}
-
-.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-}
-
-.stat-title {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--gray);
-    margin-bottom: 0.5rem;
-}
-
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--dark);
-}
-
-.stat-value small {
-    font-size: 0.875rem;
-    font-weight: 400;
-    color: var(--gray);
-}
-
-/* Tabla de movimientos */
-.movimientos-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.movimientos-table th {
-    text-align: left;
-    padding: 1rem;
-    background: #f8fafc;
-    font-weight: 600;
-    color: var(--dark);
-    border-bottom: 1px solid var(--border);
-}
-
-.movimientos-table td {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border);
-    color: #334155;
-}
-
-.movimientos-table tr:hover td {
-    background: #f8fafc;
-}
-
-/* Badges */
-.badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    border-radius: 9999px;
-}
-
-.badge-success {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.badge-warning {
-    background: #fed7aa;
-    color: #92400e;
-}
-
-@media (max-width: 768px) {
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-    }
-    
-    .stat-value {
-        font-size: 1.5rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-}
 /* ============================================
-   GRÁFICAS PROFESIONALES
+   DASHBOARD - ESTILOS COMPLETOS
    ============================================ */
 
-.charts-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+/* Filtros */
+.filters-bar {
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    display: flex;
     gap: 1rem;
+    align-items: flex-end;
     margin-bottom: 1.5rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    border: 1px solid #cbd5e1;
 }
 
-.chart-card {
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.filter-group label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.filter-group select {
+    padding: 0.5rem 1rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    background: white;
+    cursor: pointer;
+    font-weight: 500;
+    color: #1e293b;
+}
+
+.filter-group select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
+}
+
+.btn-filter {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-filter:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+/* ============================================
+   KPIs
+   ============================================ */
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.kpi-card {
     background: white;
     border-radius: 12px;
-    padding: 0.75rem;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.05);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #cbd5e1;
     transition: all 0.2s ease;
 }
 
-.chart-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-color: #94a3b8;
 }
 
-.chart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.25rem;
-    border-bottom: 1px solid #eef2f6;
+.kpi-card.kpi-blue { border-left: 4px solid #3b82f6; }
+.kpi-card.kpi-green { border-left: 4px solid #10b981; }
+.kpi-card.kpi-red { border-left: 4px solid #ef4444; }
+.kpi-card.kpi-purple { border-left: 4px solid #8b5cf6; }
+
+.kpi-icon {
+    font-size: 2rem;
+    line-height: 1;
 }
 
-.chart-header h3 {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #475569;
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-    margin: 0;
-}
-
-.chart-header .chart-value {
-    font-size: 0.65rem;
-    font-weight: 500;
-    color: #667eea;
-}
-
-.chart-container {
-    position: relative;
-    height: 160px;
-    width: 100%;
-}
-
-@media (max-width: 1200px) {
-    .charts-grid {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-    }
-    
-    .chart-container {
-        height: 180px;
-    }
-}
-
-/* Tooltips más profesionales */
-.chartjs-tooltip {
-    background: #1e293b !important;
-    color: white !important;
-    font-size: 0.7rem !important;
-    padding: 4px 8px !important;
-    border-radius: 6px !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-}
-
-/* ============================================
-   DASHBOARD EJECUTIVO - ESTILO CORPORATIVO
-   ============================================ */
-
-/* Filtros */
-.filters-bar {
-    background: white;
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
-    display: flex;
-    gap: 1rem;
-    align-items: flex-end;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-}
-
-.filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.filter-group label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.filter-group select {
-    padding: 0.5rem 1rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    background: white;
-    cursor: pointer;
-}
-
-.btn-filter {
-    background: #667eea;
-    color: white;
-    border: none;
-    padding: 0.5rem 1.5rem;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    font-weight: 500;
-}
-
-.btn-filter:hover {
-    background: #5a67d8;
-}
-
-/* KPIs */
-.kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.kpi-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1rem;
-    text-align: center;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-    border-left: 3px solid #667eea;
-}
-
-.kpi-title {
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.5rem;
-}
-
-.kpi-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1e293b;
-}
-
-/* Gráficas */
-.chart-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-}
-
-.chart-card.full-width {
-    width: 100%;
-}
-
-.charts-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
-
-.chart-card.half-width {
-    width: 100%;
-}
-
-.chart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #eef2f6;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.chart-header h3 {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #334155;
-    letter-spacing: 0.5px;
-    margin: 0;
-}
-
-.chart-stats {
-    display: flex;
-    gap: 1rem;
-}
-
-.stat-badge {
-    font-size: 0.7rem;
-    color: #64748b;
-}
-
-.stat-badge strong {
-    color: #1e293b;
-    font-weight: 700;
-}
-
-.chart-container {
-    position: relative;
-    height: 250px;
-    width: 100%;
-}
-
-@media (max-width: 1024px) {
-    .kpi-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .charts-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .chart-container {
-        height: 200px;
-    }
-}
-
-@media (max-width: 768px) {
-    .filters-bar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .kpi-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .chart-stats {
-        flex-wrap: wrap;
-    }
-}
-
-/* ============================================
-   DASHBOARD EJECUTIVO - ESTILO CORPORATIVO
-   ============================================ */
-
-/* Filtros */
-.filters-bar {
-    background: white;
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
-    display: flex;
-    gap: 1rem;
-    align-items: flex-end;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-}
-
-.filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.filter-group label {
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.filter-group select {
-    padding: 0.5rem 1rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    background: white;
-    cursor: pointer;
-    font-weight: 500;
-}
-
-.btn-filter {
-    background: #667eea;
-    color: white;
-    border: none;
-    padding: 0.5rem 1.5rem;
-    border-radius: 8px;
-    font-size: 0.7rem;
-    cursor: pointer;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.btn-filter:hover {
-    background: #5a67d8;
-}
-
-/* KPIs */
-.kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.kpi-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1rem;
-    text-align: center;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-    border-top: 3px solid #667eea;
+.kpi-info {
+    flex: 1;
 }
 
 .kpi-title {
@@ -434,137 +112,227 @@
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.8px;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .kpi-value {
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     font-weight: 800;
     color: #1e293b;
 }
 
-/* Grid de gráficas 2x2 homogéneo */
+.kpi-periodo {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    margin-top: 0.25rem;
+}
+
+/* ============================================
+   BARRA DE PROGRESO
+   ============================================ */
+
+.progress-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #cbd5e1;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.progress-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.progress-pct {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.progress-bar-bg {
+    width: 100%;
+    height: 12px;
+    background: #e2e8f0;
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+    border: 1px solid #cbd5e1;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #10b981, #3b82f6);
+    transition: width 0.6s ease;
+    width: 0%;
+}
+
+.progress-bar-fill.warning {
+    background: linear-gradient(90deg, #f59e0b, #ef4444);
+}
+
+.progress-bar-fill.danger {
+    background: linear-gradient(90deg, #ef4444, #b91c1c);
+}
+
+.progress-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: #64748b;
+}
+
+/* ============================================
+   GRÁFICAS
+   ============================================ */
+
 .charts-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+    gap: 1.25rem;
     margin-bottom: 1.5rem;
 }
 
 .chart-card {
     background: white;
     border-radius: 12px;
-    padding: 1rem;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-    display: flex;
-    flex-direction: column;
-    min-height: 320px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #cbd5e1;
+    transition: all 0.2s ease;
+}
+
+.chart-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-color: #94a3b8;
 }
 
 .chart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #eef2f6;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    background: #f8fafc;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #cbd5e1;
 }
 
 .chart-header h3 {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-weight: 700;
-    color: #334155;
-    letter-spacing: 0.5px;
-    margin: 0;
-}
-
-.chart-stats {
-    display: flex;
-    gap: 0.75rem;
-}
-
-.stat-badge {
-    font-size: 0.65rem;
-    color: #64748b;
-}
-
-.stat-badge strong {
     color: #1e293b;
-    font-weight: 700;
+    letter-spacing: 0.3px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .chart-container {
     position: relative;
-    flex: 1;
-    min-height: 220px;
+    height: 280px;
     width: 100%;
+    padding: 0.5rem;
 }
 
-/* Sección de movimientos */
+/* ============================================
+   TABLA DE ÚLTIMOS MOVIMIENTOS
+   ============================================ */
+
 .movimientos-section {
     background: white;
     border-radius: 12px;
-    padding: 1rem;
+    padding: 0;
     margin-top: 0.5rem;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #cbd5e1;
+    overflow: hidden;
 }
 
 .section-header {
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #eef2f6;
+    background: #f8fafc;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #cbd5e1;
 }
 
 .section-header h3 {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-weight: 700;
-    color: #334155;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+    color: #1e293b;
+    letter-spacing: 0.3px;
     margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .table-container {
     overflow-x: auto;
+    padding: 0;
 }
 
-table {
+#movimientosTable {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
 }
 
-th {
+#movimientosTable th {
     text-align: left;
-    padding: 0.75rem 0.5rem;
-    background: #f8fafc;
+    padding: 0.75rem 1rem;
+    background: #ffffff;
     font-weight: 700;
     color: #475569;
+    border-bottom: 1px solid #cbd5e1;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid #e2e8f0;
 }
 
-td {
-    padding: 0.6rem 0.5rem;
-    border-bottom: 1px solid #f1f5f9;
+#movimientosTable td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
     color: #334155;
 }
 
-.text-center {
-    text-align: center;
+#movimientosTable tbody tr:hover {
+    background: #f8fafc;
 }
 
-/* Responsive */
+#movimientosTable tbody tr:last-child td {
+    border-bottom: none;
+}
+
+#movimientosTable .text-center {
+    text-align: center;
+    padding: 2rem;
+    color: #94a3b8;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
 @media (max-width: 1024px) {
-    .charts-grid {
-        grid-template-columns: 1fr;
-    }
-    
     .kpi-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .chart-container {
+        height: 260px;
     }
 }
 
@@ -576,9 +344,39 @@ td {
     
     .kpi-grid {
         grid-template-columns: 1fr;
+        gap: 0.75rem;
     }
     
-    .chart-stats {
-        flex-wrap: wrap;
+    .kpi-card {
+        padding: 0.875rem 1rem;
+    }
+    
+    .kpi-value {
+        font-size: 1.25rem;
+    }
+    
+    .kpi-icon {
+        font-size: 1.5rem;
+    }
+    
+    .chart-container {
+        height: 220px;
+    }
+    
+    #movimientosTable th,
+    #movimientosTable td {
+        padding: 0.5rem;
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .progress-footer {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .chart-header h3 {
+        font-size: 0.7rem;
     }
 }

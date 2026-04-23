@@ -589,27 +589,35 @@ app.delete('/api/movimientos/:id', async (req, res) => {
 // =====================================================
 
 // Obtener presupuesto del mes actual
+// GET - Presupuesto actual (con parámetros opcionales)
 app.get('/api/presupuesto/actual', async (req, res) => {
     try {
-        const ahora = new Date();
-        const mes = ahora.getMonth() + 1;
-        const anio = ahora.getFullYear();
-
+        let queryMes, queryAnio;
+        
+        if (req.query.mes && req.query.anio) {
+            queryMes = parseInt(req.query.mes);
+            queryAnio = parseInt(req.query.anio);
+        } else {
+            const ahora = new Date();
+            queryMes = ahora.getMonth() + 1;
+            queryAnio = ahora.getFullYear();
+        }
+        
         const result = await bdGasolina.query(`
             SELECT mes, anio, monto_inicial, monto_restante,
                    (monto_inicial - monto_restante) as gastado
             FROM presupuesto_global
             WHERE mes = $1 AND anio = $2
-        `, [mes, anio]);
-
+        `, [queryMes, queryAnio]);
+        
         if (result.rows.length === 0) {
-            res.json({ mes, anio, monto_inicial: 0, monto_restante: 0, gastado: 0 });
+            res.json({ mes: queryMes, anio: queryAnio, monto_inicial: 0, monto_restante: 0, gastado: 0 });
         } else {
             res.json(result.rows[0]);
         }
     } catch (error) {
         console.error('Error en /api/presupuesto/actual:', error);
-        res.status(500).json({ error: 'Error al obtener presupuesto' });
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -651,30 +659,34 @@ app.get('/api/dashboard/kpis', async (req, res) => {
 // DASHBOARD - GRÁFICAS
 // =====================================================
 
+// =============================================
+// DASHBOARD - GRÁFICAS (CON FILTRO POR MES)
+// =============================================
+
 app.get('/api/reportes/graficas', async (req, res) => {
     const { anio, mes } = req.query;
     const añoSeleccionado = anio || new Date().getFullYear();
+    const mesSeleccionado = mes && mes !== '0' ? parseInt(mes) : null;
 
     try {
-        const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-
-        // 1. Abono por mes
+        // 1. Abono por mes (12 meses)
         const abonoMensual = await bdGasolina.query(`
             SELECT EXTRACT(MONTH FROM fecha) as mes_numero, COALESCE(SUM(monto), 0) as total
-            FROM movimientos WHERE EXTRACT(YEAR FROM fecha) = $1
-            GROUP BY EXTRACT(MONTH FROM fecha) ORDER BY mes_numero
+            FROM movimientos 
+            WHERE EXTRACT(YEAR FROM fecha) = $1
+            GROUP BY EXTRACT(MONTH FROM fecha)
+            ORDER BY mes_numero
         `, [añoSeleccionado]);
 
         const abonoMap = new Map();
         abonoMensual.rows.forEach(r => abonoMap.set(parseInt(r.mes_numero), parseFloat(r.total)));
 
-        const abonoValores = [];
-        for (let i = 1; i <= 12; i++) abonoValores.push(abonoMap.get(i) || 0);
-
-        // 2. Presupuesto vs Abono
+        // 2. Presupuesto por mes (12 meses)
         const presupuestoMensual = await bdGasolina.query(`
             SELECT mes, anio, monto_inicial, COALESCE((monto_inicial - monto_restante), 0) as gastado
-            FROM presupuesto_global WHERE anio = $1 ORDER BY mes ASC
+            FROM presupuesto_global 
+            WHERE anio = $1 
+            ORDER BY mes ASC
         `, [añoSeleccionado]);
 
         const presupuestoMap = new Map();
@@ -684,28 +696,55 @@ app.get('/api/reportes/graficas', async (req, res) => {
             gastadoMap.set(r.mes, parseFloat(r.gastado));
         });
 
+        // 3. Abono por departamento (CON FILTRO DE MES)
+        let deptoQuery = `
+            SELECT m.departamento_id, COALESCE(SUM(m.monto), 0) as total
+            FROM movimientos m 
+            WHERE m.departamento_id IS NOT NULL 
+              AND EXTRACT(YEAR FROM m.fecha) = $1
+        `;
+        let deptoParams = [añoSeleccionado];
+        
+        if (mesSeleccionado) {
+            deptoQuery += ` AND EXTRACT(MONTH FROM m.fecha) = $2`;
+            deptoParams.push(mesSeleccionado);
+        }
+        
+        deptoQuery += ` GROUP BY m.departamento_id ORDER BY total DESC`;
+        
+        const deptoResult = await bdGasolina.query(deptoQuery, deptoParams);
+
+        // 4. Abono por conductor (CON FILTRO DE MES)
+        let conductorQuery = `
+            SELECT m.empleado_id, COALESCE(SUM(m.monto), 0) as total
+            FROM movimientos m 
+            WHERE m.empleado_id IS NOT NULL 
+              AND EXTRACT(YEAR FROM m.fecha) = $1
+        `;
+        let conductorParams = [añoSeleccionado];
+        
+        if (mesSeleccionado) {
+            conductorQuery += ` AND EXTRACT(MONTH FROM m.fecha) = $2`;
+            conductorParams.push(mesSeleccionado);
+        }
+        
+        conductorQuery += ` GROUP BY m.empleado_id ORDER BY total DESC`;
+        
+        const conductorResult = await bdGasolina.query(conductorQuery, conductorParams);
+
+        // Crear arrays de 12 meses
+        const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+        const abonoValores = [];
         const presupuestoValores = [];
         const gastadoValores = [];
+
         for (let i = 1; i <= 12; i++) {
+            abonoValores.push(abonoMap.get(i) || 0);
             presupuestoValores.push(presupuestoMap.get(i) || 0);
             gastadoValores.push(gastadoMap.get(i) || 0);
         }
 
-        // 3. Abono por departamento
-        const deptoResult = await bdGasolina.query(`
-            SELECT m.departamento_id, COALESCE(SUM(m.monto), 0) as total
-            FROM movimientos m WHERE m.departamento_id IS NOT NULL AND EXTRACT(YEAR FROM m.fecha) = $1
-            GROUP BY m.departamento_id ORDER BY total DESC LIMIT 8
-        `, [añoSeleccionado]);
-
-        // 4. Abono por conductor
-        const conductorResult = await bdGasolina.query(`
-            SELECT m.empleado_id, COALESCE(SUM(m.monto), 0) as total
-            FROM movimientos m WHERE m.empleado_id IS NOT NULL AND EXTRACT(YEAR FROM m.fecha) = $1
-            GROUP BY m.empleado_id ORDER BY total DESC LIMIT 8
-        `, [añoSeleccionado]);
-
-        // Obtener nombres
+        // Obtener nombres de departamentos
         let deptoLabels = [], deptoValores = [];
         for (const d of deptoResult.rows) {
             const deptoNombre = await bdPrincipal.query('SELECT nombre FROM departamentos WHERE id = $1', [d.departamento_id]);
@@ -713,9 +752,13 @@ app.get('/api/reportes/graficas', async (req, res) => {
             deptoValores.push(parseFloat(d.total));
         }
 
+        // Obtener nombres de conductores
         let conductoresNombres = [], conductoresValores = [];
         for (const c of conductorResult.rows) {
-            const empNombre = await bdPrincipal.query('SELECT CONCAT(nombre, \' \', apellido_paterno) as nombre FROM empleados WHERE id = $1', [c.empleado_id]);
+            const empNombre = await bdPrincipal.query(`
+                SELECT CONCAT(nombre, ' ', apellido_paterno, ' ', COALESCE(apellido_materno, '')) as nombre 
+                FROM empleados WHERE id = $1
+            `, [c.empleado_id]);
             conductoresNombres.push(empNombre.rows[0]?.nombre || `ID: ${c.empleado_id}`);
             conductoresValores.push(parseFloat(c.total));
         }
@@ -724,12 +767,28 @@ app.get('/api/reportes/graficas', async (req, res) => {
         const totalPresupuesto = presupuestoValores.reduce((a, b) => a + b, 0);
 
         res.json({
-            meses: meses,
-            mensual: { labels: meses, valores: abonoValores },
-            presupuestoVSMensual: { labels: meses, presupuesto: presupuestoValores, abono: gastadoValores },
-            departamentos: { labels: deptoLabels.length > 0 ? deptoLabels : ['Sin datos'], valores: deptoValores.length > 0 ? deptoValores : [0] },
-            conductores: { labels: conductoresNombres.length > 0 ? conductoresNombres : ['Sin datos'], valores: conductoresValores.length > 0 ? conductoresValores : [0] },
-            totales: { abonoTotal: totalAbono, presupuestoTotal: totalPresupuesto, saldoTotal: totalPresupuesto - totalAbono }
+            mensual: { 
+                labels: meses, 
+                valores: abonoValores 
+            },
+            presupuestoVSMensual: { 
+                labels: meses, 
+                presupuesto: presupuestoValores, 
+                abono: gastadoValores 
+            },
+            departamentos: { 
+                labels: deptoLabels.length > 0 ? deptoLabels : ['Sin datos'], 
+                valores: deptoValores.length > 0 ? deptoValores : [0] 
+            },
+            conductores: { 
+                labels: conductoresNombres.length > 0 ? conductoresNombres : ['Sin datos'], 
+                valores: conductoresValores.length > 0 ? conductoresValores : [0] 
+            },
+            totales: { 
+                abonoTotal: totalAbono, 
+                presupuestoTotal: totalPresupuesto, 
+                saldoTotal: totalPresupuesto - totalAbono 
+            }
         });
 
     } catch (error) {
