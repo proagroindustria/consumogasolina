@@ -570,6 +570,7 @@ app.delete('/api/movimientos/:id', async (req, res) => {
         const anio = new Date(fecha).getFullYear();
         const monto = movimiento.rows[0].monto;
 
+        // Esto debería SUMAR el monto al presupuesto restante
         await bdGasolina.query(`
             UPDATE presupuesto_global 
             SET monto_restante = monto_restante + $1

@@ -52,6 +52,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function cargarTodosLosDatos() {
+
+     const timestamp = Date.now();
     const anio = document.getElementById('filtroAnio').value;
     const mes  = document.getElementById('filtroMes').value;
 
@@ -219,110 +221,125 @@ async function cargarGraficas(anio, mes) {
             }
         });
 
-        // ============================================
-        // GRÁFICA 2: TABLA PRESUPUESTO VS ABONO
-        // ============================================
-        const canvas2 = document.getElementById('chartPresupuesto');
-        canvas2.style.display = 'none';
+        
+     // ============================================
+// GRÁFICA 2: PRESUPUESTO VS ABONO (TABLA SIN ABREVIAR)
+// ============================================
 
-        const parentCard2 = canvas2.closest('.chart-card');
-        if (parentCard2) {
-            parentCard2.style.overflowX = 'auto';
-            parentCard2.style.padding   = '0';
-        }
+// Ocultar el canvas de la gráfica
+const canvas = document.getElementById('chartPresupuesto');
+canvas.style.display = 'none';
 
-        let tablaContainer = document.getElementById('tablaPresupuesto');
-        if (!tablaContainer) {
-            tablaContainer = document.createElement('div');
-            tablaContainer.id = 'tablaPresupuesto';
-            canvas2.parentElement.insertBefore(tablaContainer, canvas2);
-        }
-        tablaContainer.style.cssText = 'width:100%; overflow-x:auto; background:white; border-radius:0 0 12px 12px; padding:0; margin:0;';
+// Obtener el contenedor padre
+const parentCard = canvas.closest('.chart-card');
+if (parentCard) {
+    parentCard.style.overflowX = 'auto';
+    parentCard.style.overflowY = 'visible';
+    parentCard.style.padding = '0';
+}
 
-        const MESES12 = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-        const presComp  = new Array(12).fill(0);
-        const abonoComp = new Array(12).fill(0);
+// Crear contenedor de la tabla
+let tablaContainer = document.getElementById('tablaPresupuesto');
+if (!tablaContainer) {
+    tablaContainer = document.createElement('div');
+    tablaContainer.id = 'tablaPresupuesto';
+    canvas.parentElement.insertBefore(tablaContainer, canvas);
+}
 
-        data.presupuestoVSMensual.labels.forEach((mes, i) => {
-            const idx = MESES12.indexOf(mes);
-            if (idx !== -1) {
-                presComp[idx]  = data.presupuestoVSMensual.presupuesto[i];
-                abonoComp[idx] = data.presupuestoVSMensual.abono[i];
-            }
-        });
+tablaContainer.style.cssText = `
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    background: white;
+    border-radius: 0 0 12px 12px;
+    padding: 0;
+    margin: 0;
+`;
 
-        let tablaHTML = `
-        <table style="width:max-content;min-width:100%;border-collapse:collapse;font-family:'Inter',sans-serif;font-size:0.7rem;">
-            <thead>
-                <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-                    <th style="position:sticky;left:0;background:#f8fafc;padding:0.75rem 0.5rem;text-align:left;font-weight:700;color:#475569;min-width:60px;">MES</th>
-                    <th style="padding:0.75rem 0.5rem;text-align:center;font-weight:700;color:#475569;min-width:100px;">PRESUPUESTO</th>
-                    <th style="padding:0.75rem 0.5rem;text-align:center;font-weight:700;color:#475569;min-width:100px;">ABONO</th>
-                    <th style="padding:0.75rem 0.5rem;text-align:center;font-weight:700;color:#475569;min-width:100px;">SALDO</th>
-                    <th style="padding:0.75rem 0.5rem;text-align:center;font-weight:700;color:#475569;min-width:120px;">USO %</th>
-                    <th style="padding:0.75rem 0.5rem;text-align:center;font-weight:700;color:#475569;min-width:100px;">ESTADO</th>
-                </tr>
-            </thead><tbody>`;
+// FORZAR 12 MESES COMPLETOS
+const MESES_COMPLETOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
 
-        for (let i = 0; i < 12; i++) {
-            const p   = presComp[i], a = abonoComp[i];
-            const s   = p - a;
-            const pct = p > 0 ? (a / p) * 100 : 0;
-            const tieneDatos = p > 0 || a > 0;
+// Crear arrays de 12 posiciones
+const presupuestosCompletos = new Array(12).fill(0);
+const abonosCompletos = new Array(12).fill(0);
 
-            const saldoStyle  = s >= 0 ? 'color:#10b981;' : 'color:#ef4444;';
-            const badgeText   = !tieneDatos ? 'Sin datos' : s < 0 ? 'Excedido' : pct >= 90 ? 'Por agotarse' : 'Disponible';
-            const badgeBg     = !tieneDatos ? '#f1f5f9' : s < 0 ? '#fee2e2' : pct >= 90 ? '#fef3c7' : '#d1fae5';
-            const badgeColor  = !tieneDatos ? '#64748b' : s < 0 ? '#991b1b' : pct >= 90 ? '#92400e' : '#065f46';
-            const barColor    = !tieneDatos ? '#cbd5e1' : s < 0 ? '#ef4444' : pct >= 90 ? '#f59e0b' : '#10b981';
+// Llenar con los datos que vienen de la API
+const mesesAPI = data.presupuestoVSMensual.labels;
+const presupuestosAPI = data.presupuestoVSMensual.presupuesto;
+const abonosAPI = data.presupuestoVSMensual.abono;
 
-            tablaHTML += `
-            <tr style="border-bottom:1px solid #f1f5f9;">
-                <td style="position:sticky;left:0;background:white;padding:0.5rem;font-weight:700;color:#1e293b;">${MESES12[i]}</td>
-                <td style="padding:0.5rem;text-align:center;">${formatearMonto(p)}</td>
-                <td style="padding:0.5rem;text-align:center;">${formatearMonto(a)}</td>
-                <td style="padding:0.5rem;text-align:center;${saldoStyle}">${s >= 0 ? formatearMonto(s) : '⚠️ ' + formatearMonto(Math.abs(s))}</td>
-                <td style="padding:0.5rem;text-align:center;">
-                    <div style="display:inline-flex;align-items:center;gap:0.4rem;">
-                        <div style="width:70px;height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden;">
-                            <div style="width:${Math.min(pct,100)}%;height:100%;background:${barColor};border-radius:99px;"></div>
-                        </div>
-                        <span style="font-size:0.65rem;font-weight:600;">${Math.round(pct)}%</span>
-                    </div>
-                </td>
-                <td style="padding:0.5rem;text-align:center;">
-                    <span style="display:inline-block;padding:0.15rem 0.4rem;border-radius:20px;font-size:0.6rem;font-weight:600;background:${badgeBg};color:${badgeColor};">${badgeText}</span>
-                </td>
-            </tr>`;
-        }
+for (let i = 0; i < mesesAPI.length; i++) {
+    const mes = mesesAPI[i];
+    const idx = MESES_COMPLETOS.indexOf(mes);
+    if (idx !== -1) {
+        presupuestosCompletos[idx] = presupuestosAPI[i];
+        abonosCompletos[idx] = abonosAPI[i];
+    }
+}
 
-        const totP = presComp.reduce((a,b)=>a+b,0);
-        const totA = abonoComp.reduce((a,b)=>a+b,0);
-        const totS = totP - totA;
-        const totPct = totP > 0 ? (totA / totP) * 100 : 0;
+// Función para formatear montos COMPLETOS (sin abreviar)
+function formatearMontoCompleto(valor) {
+    if (valor === 0) return '$0';
+    return '$' + valor.toLocaleString('es-MX');
+}
 
-        tablaHTML += `
-            <tr style="background:#f1f5f9;font-weight:700;border-top:2px solid #cbd5e1;">
-                <td style="position:sticky;left:0;background:#f1f5f9;padding:0.75rem 0.5rem;">TOTAL</td>
-                <td style="padding:0.75rem 0.5rem;text-align:center;">${formatearMonto(totP)}</td>
-                <td style="padding:0.75rem 0.5rem;text-align:center;">${formatearMonto(totA)}</td>
-                <td style="padding:0.75rem 0.5rem;text-align:center;${totS>=0?'color:#10b981;':'color:#ef4444;'}">${totS>=0?formatearMonto(totS):'⚠️ '+formatearMonto(Math.abs(totS))}</td>
-                <td style="padding:0.75rem 0.5rem;text-align:center;">
-                    <div style="display:inline-flex;align-items:center;gap:0.4rem;">
-                        <div style="width:70px;height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden;">
-                            <div style="width:${Math.min(totPct,100)}%;height:100%;background:${totPct>=90?'#f59e0b':'#10b981'};border-radius:99px;"></div>
-                        </div>
-                        <span style="font-size:0.65rem;font-weight:600;">${Math.round(totPct)}%</span>
-                    </div>
-                </td>
-                <td style="padding:0.75rem 0.5rem;"></td>
+// Construir la tabla SIMPLIFICADA (sin USO %, sin ESTADO, sin abreviar)
+let tablaHTML = `
+    <table style="width: max-content; min-width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 0.75rem;">
+        <thead>
+            <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                <th style="position: sticky; left: 0; background: #f8fafc; padding: 0.75rem 0.75rem; text-align: left; font-weight: 700; color: #475569; min-width: 70px;">MES</th>
+                <th style="padding: 0.75rem 0.75rem; text-align: center; font-weight: 700; color: #475569; min-width: 130px;">PRESUPUESTO</th>
+                <th style="padding: 0.75rem 0.75rem; text-align: center; font-weight: 700; color: #475569; min-width: 130px;">ABONO</th>
+                <th style="padding: 0.75rem 0.75rem; text-align: center; font-weight: 700; color: #475569; min-width: 130px;">SALDO</th>
             </tr>
-        </tbody></table>
-        <div style="text-align:center;font-size:0.6rem;color:#94a3b8;padding:0.5rem;background:#f8fafc;border-top:1px solid #e2e8f0;">←→ Desliza para ver todos los meses</div>`;
+        </thead>
+        <tbody>
+`;
 
-        tablaContainer.innerHTML = tablaHTML;
-        if (chartPresupuesto) { chartPresupuesto.destroy(); chartPresupuesto = null; }
+for (let i = 0; i < MESES_COMPLETOS.length; i++) {
+    const mes = MESES_COMPLETOS[i];
+    const pres = presupuestosCompletos[i];
+    const abono = abonosCompletos[i];
+    const saldo = pres - abono;
+    const saldoClass = saldo >= 0 ? 'color: #10b981;' : 'color: #ef4444;';
+    
+    tablaHTML += `
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="position: sticky; left: 0; background: white; padding: 0.6rem 0.75rem; text-align: left; font-weight: 700; color: #1e293b;">${mes}</td>
+            <td style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600;">${formatearMontoCompleto(pres)}</td>
+            <td style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600;">${formatearMontoCompleto(abono)}</td>
+            <td style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600; ${saldoClass}">${saldo >= 0 ? formatearMontoCompleto(saldo) : `⚠️ ${formatearMontoCompleto(Math.abs(saldo))}`}</td>
+        </tr>
+    `;
+}
 
+// Totales
+const totalPresupuesto = presupuestosCompletos.reduce((a, b) => a + b, 0);
+const totalAbono = abonosCompletos.reduce((a, b) => a + b, 0);
+const totalSaldo = totalPresupuesto - totalAbono;
+
+tablaHTML += `
+        <tr style="background: #f1f5f9; font-weight: 700; border-top: 2px solid #cbd5e1;">
+            <td style="position: sticky; left: 0; background: #f1f5f9; padding: 0.75rem 0.75rem; text-align: left;">TOTAL</td>
+            <td style="padding: 0.75rem 0.75rem; text-align: center;">${formatearMontoCompleto(totalPresupuesto)}</td>
+            <td style="padding: 0.75rem 0.75rem; text-align: center;">${formatearMontoCompleto(totalAbono)}</td>
+            <td style="padding: 0.75rem 0.75rem; text-align: center; ${totalSaldo >= 0 ? 'color: #10b981;' : 'color: #ef4444;'}">${totalSaldo >= 0 ? formatearMontoCompleto(totalSaldo) : `⚠️ ${formatearMontoCompleto(Math.abs(totalSaldo))}`}</td>
+        </tr>
+    </tbody>
+</table>
+<div style="text-align: center; font-size: 0.65rem; color: #94a3b8; padding: 0.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+    ←→ Desliza para ver todos los meses (ENE - DIC)
+</div>
+`;
+
+tablaContainer.innerHTML = tablaHTML;
+tablaContainer.style.display = 'block';
+
+if (chartPresupuesto) {
+    chartPresupuesto.destroy();
+    chartPresupuesto = null;
+}
         // ============================================
         // GRÁFICA 3: ABONO POR DEPARTAMENTO — FIX
         // ============================================
@@ -516,6 +533,26 @@ function renderTablaMovimientos(movimientos) {
     });
 }
 
+
+
+// =====================================================
+// DETECTAR CUANDO LA PÁGINA SE VUELVE VISIBLE
+// (para actualizar datos después de volver de abonos/presupuesto)
+// =====================================================
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        console.log('🔄 Página visible - Recargando datos...');
+        cargarTodosLosDatos();
+    }
+});
+
+// También detectar cuando se usa el botón "atrás" del navegador
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        console.log('🔄 Página recuperada del caché - Recargando datos...');
+        cargarTodosLosDatos();
+    }
+});
 // =====================================================
 // LOGOUT
 // =====================================================
