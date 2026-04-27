@@ -156,9 +156,9 @@ app.post('/api/login', async (req, res) => {
 // RUTAS DE ARCHIVOS ESTÁTICOS (HTML)
 // =====================================================
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
+// app.get('/', (req, res) => {
+//     res.redirect('/login.html');
+// });
 
 app.get('/dashboard.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
@@ -478,7 +478,8 @@ app.get('/api/movimientos', async (req, res) => {
     }
 });
 
-// Crear nuevo movimiento
+
+
 app.post('/api/movimientos', async (req, res) => {
     const { fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion } = req.body;
 
@@ -494,29 +495,41 @@ app.post('/api/movimientos', async (req, res) => {
         }
     }
 
-    console.log('📝 Registrando movimiento:', { fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, usuarioRegistraId });
+    console.log('📝 Registrando movimiento:', { fecha, tarjeta_id, monto });
 
     try {
+        // Insertar movimiento
         const result = await bdGasolina.query(`
             INSERT INTO movimientos (fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion, usuario_registra_id)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING id
         `, [fecha, tarjeta_id, unidad_id || null, empleado_id || null, departamento_id || null, monto, observacion || 'normal', usuarioRegistraId]);
 
+        console.log('✅ Movimiento insertado ID:', result.rows[0].id);
+
+        // Recalcular presupuesto usando SUM (el mismo método que funciona en PUT)
         const mes = new Date(fecha).getMonth() + 1;
         const anio = new Date(fecha).getFullYear();
 
-        await bdGasolina.query(`
-            UPDATE presupuesto_global 
-            SET monto_restante = monto_restante - $1,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE mes = $2 AND anio = $3
-        `, [monto, mes, anio]);
+        const updateResult = await bdGasolina.query(`
+            UPDATE presupuesto_global pg
+            SET monto_restante = pg.monto_inicial - COALESCE((
+                SELECT SUM(m.monto)
+                FROM movimientos m
+                WHERE EXTRACT(MONTH FROM m.fecha) = $1
+                  AND EXTRACT(YEAR FROM m.fecha) = $2
+            ), 0),
+            updated_at = CURRENT_TIMESTAMP
+            WHERE pg.mes = $1 AND pg.anio = $2
+            RETURNING pg.monto_restante as nuevo_restante
+        `, [mes, anio]);
+
+        console.log('✅ Presupuesto actualizado, nuevo restante:', updateResult.rows[0]?.nuevo_restante);
 
         res.json({ success: true, id: result.rows[0].id });
 
     } catch (error) {
-        console.error('Error en POST /api/movimientos:', error);
+        console.error('❌ Error en POST /api/movimientos:', error);
         res.status(500).json({ error: 'Error al registrar movimiento: ' + error.message });
     }
 });
@@ -558,24 +571,32 @@ app.put('/api/movimientos/:id', async (req, res) => {
 app.delete('/api/movimientos/:id', async (req, res) => {
     const { id } = req.params;
     try {
+        // Obtener el movimiento antes de eliminarlo
         const movimiento = await bdGasolina.query('SELECT monto, fecha FROM movimientos WHERE id = $1', [id]);
         if (movimiento.rows.length === 0) {
             return res.status(404).json({ error: 'Movimiento no encontrado' });
         }
 
+        // Eliminar el movimiento
         await bdGasolina.query('DELETE FROM movimientos WHERE id = $1', [id]);
 
+        // Obtener mes y año del movimiento eliminado
         const fecha = movimiento.rows[0].fecha;
         const mes = new Date(fecha).getMonth() + 1;
         const anio = new Date(fecha).getFullYear();
-        const monto = movimiento.rows[0].monto;
 
-        // Esto debería SUMAR el monto al presupuesto restante
+        // Recalcular presupuesto de ese mes
         await bdGasolina.query(`
-            UPDATE presupuesto_global 
-            SET monto_restante = monto_restante + $1
-            WHERE mes = $2 AND anio = $3
-        `, [monto, mes, anio]);
+            UPDATE presupuesto_global pg
+            SET monto_restante = pg.monto_inicial - COALESCE((
+                SELECT SUM(m.monto)
+                FROM movimientos m
+                WHERE EXTRACT(MONTH FROM m.fecha) = $1
+                  AND EXTRACT(YEAR FROM m.fecha) = $2
+            ), 0),
+            updated_at = CURRENT_TIMESTAMP
+            WHERE pg.mes = $1 AND pg.anio = $2
+        `, [mes, anio]);
 
         res.json({ success: true });
 

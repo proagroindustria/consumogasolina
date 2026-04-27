@@ -1,5 +1,8 @@
 // Usar el puerto actual de la página
-const API_URL = `http://localhost:${window.location.port}/api`;
+// Funciona tanto local como en producción
+const API_URL = window.location.hostname === 'localhost' 
+    ? `http://localhost:${window.location.port}/api`
+    : '/api';
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();

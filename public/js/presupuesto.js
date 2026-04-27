@@ -1,4 +1,6 @@
-const API_URL = `http://localhost:${window.location.port}/api`;
+const API_URL = window.location.hostname === 'localhost' 
+    ? `http://localhost:${window.location.port}/api`
+    : '/api';
 const token = localStorage.getItem('token');
 
 if (!token) window.location.href = '/login.html';
