@@ -479,6 +479,11 @@ app.get('/api/movimientos', async (req, res) => {
 });
 
 
+// Array de nombres de meses
+const MESES_NOMBRES = [
+    '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
 
 app.post('/api/movimientos', async (req, res) => {
     const { fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion } = req.body;
@@ -498,6 +503,23 @@ app.post('/api/movimientos', async (req, res) => {
     console.log('📝 Registrando movimiento:', { fecha, tarjeta_id, monto });
 
     try {
+        // ✅ VALIDACIÓN: Verificar que exista presupuesto para ese mes
+        const mes = new Date(fecha).getMonth() + 1;
+        const anio = new Date(fecha).getFullYear();
+        const nombreMes = MESES_NOMBRES[mes];
+
+        const presupuestoExistente = await bdGasolina.query(`
+            SELECT id FROM presupuesto_global 
+            WHERE mes = $1 AND anio = $2
+        `, [mes, anio]);
+
+        if (presupuestoExistente.rows.length === 0) {
+            return res.status(400).json({ 
+                error: `No existe presupuesto para ${nombreMes} de ${anio}. Debes cargar un presupuesto antes de registrar movimientos.`,
+                code: 'NO_PRESUPUESTO'
+            });
+        }
+
         // Insertar movimiento
         const result = await bdGasolina.query(`
             INSERT INTO movimientos (fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion, usuario_registra_id)
@@ -507,10 +529,7 @@ app.post('/api/movimientos', async (req, res) => {
 
         console.log('✅ Movimiento insertado ID:', result.rows[0].id);
 
-        // Recalcular presupuesto usando SUM (el mismo método que funciona en PUT)
-        const mes = new Date(fecha).getMonth() + 1;
-        const anio = new Date(fecha).getFullYear();
-
+        // Recalcular presupuesto usando SUM
         const updateResult = await bdGasolina.query(`
             UPDATE presupuesto_global pg
             SET monto_restante = pg.monto_inicial - COALESCE((
@@ -535,6 +554,7 @@ app.post('/api/movimientos', async (req, res) => {
 });
 
 // Actualizar movimiento existente
+// Actualizar movimiento existente (con actualización de presupuesto)
 app.put('/api/movimientos/:id', async (req, res) => {
     const { id } = req.params;
     const { fecha, tarjeta_id, unidad_id, empleado_id, departamento_id, monto, observacion } = req.body;
@@ -552,12 +572,57 @@ app.put('/api/movimientos/:id', async (req, res) => {
     }
 
     try {
+        // 1. Obtener el movimiento original ANTES de actualizar
+        const movimientoOriginal = await bdGasolina.query(
+            'SELECT fecha, monto FROM movimientos WHERE id = $1',
+            [id]
+        );
+
+        if (movimientoOriginal.rows.length === 0) {
+            return res.status(404).json({ error: 'Movimiento no encontrado' });
+        }
+
+        const fechaOriginal = movimientoOriginal.rows[0].fecha;
+        const mesOriginal = new Date(fechaOriginal).getMonth() + 1;
+        const anioOriginal = new Date(fechaOriginal).getFullYear();
+        const montoOriginal = parseFloat(movimientoOriginal.rows[0].monto);
+
+        // 2. Actualizar el movimiento con los nuevos datos
         await bdGasolina.query(`
             UPDATE movimientos 
             SET fecha = $1, tarjeta_id = $2, unidad_id = $3, empleado_id = $4, 
                 departamento_id = $5, monto = $6, observacion = $7, usuario_registra_id = $8
             WHERE id = $9
         `, [fecha, tarjeta_id, unidad_id || null, empleado_id || null, departamento_id || null, monto, observacion, usuarioRegistraId, id]);
+
+        // 3. Recalcular presupuesto del mes ORIGINAL (donde estaba el movimiento antes)
+        await bdGasolina.query(`
+            UPDATE presupuesto_global pg
+            SET monto_restante = pg.monto_inicial - COALESCE((
+                SELECT SUM(m.monto)
+                FROM movimientos m
+                WHERE EXTRACT(MONTH FROM m.fecha) = $1
+                  AND EXTRACT(YEAR FROM m.fecha) = $2
+            ), 0),
+            updated_at = CURRENT_TIMESTAMP
+            WHERE pg.mes = $1 AND pg.anio = $2
+        `, [mesOriginal, anioOriginal]);
+
+        // 4. Recalcular presupuesto del mes NUEVO (donde está ahora el movimiento)
+        const mesNuevo = new Date(fecha).getMonth() + 1;
+        const anioNuevo = new Date(fecha).getFullYear();
+
+        await bdGasolina.query(`
+            UPDATE presupuesto_global pg
+            SET monto_restante = pg.monto_inicial - COALESCE((
+                SELECT SUM(m.monto)
+                FROM movimientos m
+                WHERE EXTRACT(MONTH FROM m.fecha) = $1
+                  AND EXTRACT(YEAR FROM m.fecha) = $2
+            ), 0),
+            updated_at = CURRENT_TIMESTAMP
+            WHERE pg.mes = $1 AND pg.anio = $2
+        `, [mesNuevo, anioNuevo]);
 
         res.json({ success: true });
 

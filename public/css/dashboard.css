@@ -457,3 +457,18 @@
 #tablaPresupuesto .tabla-wrapper table tr:last-child td:first-child {
     background: #f1f5f9;
 }
+.progress-bar-fill.success {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.progress-bar-fill.warning {
+    background: linear-gradient(90deg, #fbbf24, #fcd34d);
+}
+
+.progress-bar-fill.orange {
+    background: linear-gradient(90deg, #f97316, #fb923c);
+}
+
+.progress-bar-fill.danger {
+    background: linear-gradient(90deg, #f80000, #ff0000);
+}

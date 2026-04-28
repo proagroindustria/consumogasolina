@@ -85,21 +85,47 @@ async function cargarBarraProgreso() {
 
         const inicial = parseFloat(data.monto_inicial || 0);
         const gastado = parseFloat(data.gastado || 0);
-        const pct     = inicial > 0 ? Math.min((gastado / inicial) * 100, 100) : 0;
+        let pct = inicial > 0 ? (gastado / inicial) * 100 : 0;
+        
+        const pctVisual = Math.min(pct, 100);
+        const pctRedondeado = Math.round(pct);
+        const excedido = gastado - inicial;
 
-        document.getElementById('progressPct').textContent     = `${Math.round(pct)}%`;
-        document.getElementById('progressGastado').textContent = `$${gastado.toLocaleString()} gastado`;
-        document.getElementById('progressTotal').textContent   =
-            `de $${inicial.toLocaleString()} asignado (${MESES[mesActual]} ${anioActual})`;
+        // Actualizar texto del porcentaje
+        document.getElementById('progressPct').textContent = `${pctRedondeado}%`;
+        
+        // Actualizar textos de gastado y total
+        if (excedido > 0) {
+            // Si está excedido
+            document.getElementById('progressGastado').innerHTML = `⚠️ <strong>PRESUPUESTO EXCEDIDO</strong> por $${excedido.toLocaleString()}`;
+            document.getElementById('progressTotal').innerHTML = `Presupuesto asignado: $${inicial.toLocaleString()} | Total gastado: $${gastado.toLocaleString()}`;
+            document.getElementById('progressGastado').style.color = '#ef4444';
+        } else {
+            // Normal
+            document.getElementById('progressGastado').innerHTML = `$${gastado.toLocaleString()} gastado`;
+            document.getElementById('progressTotal').innerHTML = `de $${inicial.toLocaleString()} asignado (${MESES[mesActual]} ${anioActual})`;
+            document.getElementById('progressGastado').style.color = '#64748b';
+        }
 
         const barFill = document.getElementById('progressBar');
-        barFill.style.width = `${pct}%`;
-        barFill.classList.remove('warning', 'danger');
-        if (pct >= 90)      barFill.classList.add('danger');
-        else if (pct >= 70) barFill.classList.add('warning');
+        barFill.style.width = `${pctVisual}%`;
+        
+        // Limpiar clases anteriores
+        barFill.classList.remove('success', 'warning', 'orange', 'danger');
+        
+        // Asignar color según porcentaje
+        if (pct >= 80) {
+            barFill.classList.add('danger');
+        } else if (pct >= 71) {
+            barFill.classList.add('orange');
+        } else if (pct >= 51) {
+            barFill.classList.add('warning');
+        } else {
+            barFill.classList.add('success');
+        }
 
     } catch (error) {
-        console.error('Error barra progreso:', error);
+        console.error('Error:', error);
     }
 }
 
