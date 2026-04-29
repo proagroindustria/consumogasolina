@@ -461,11 +461,12 @@ app.get('/api/movimientos', async (req, res) => {
             deptosMap = new Map(deptosRes.rows.map(d => [d.id, d.nombre]));
         }
 
-        const movimientosEnriquecidos = movimientos.map(m => ({
-            ...m,
-            empleado_nombre: empleadosMap.get(m.empleado_id) || null,
-            departamento_nombre: deptosMap.get(m.departamento_id) || null
-        }));
+       const movimientosEnriquecidos = movimientos.map(m => ({
+    ...m,
+    empleado_nombre: empleadosMap.get(m.empleado_id) || null,
+    departamento_nombre: deptosMap.get(m.departamento_id) || null,
+    monto: Math.round(parseFloat(m.monto))  // ← Agregar esta línea
+}));
 
         res.json({
             data: movimientosEnriquecidos,
@@ -691,11 +692,13 @@ app.get('/api/presupuesto/actual', async (req, res) => {
         }
         
         const result = await bdGasolina.query(`
-            SELECT mes, anio, monto_inicial, monto_restante,
-                   (monto_inicial - monto_restante) as gastado
-            FROM presupuesto_global
-            WHERE mes = $1 AND anio = $2
-        `, [queryMes, queryAnio]);
+    SELECT mes, anio, 
+           ROUND(monto_inicial) as monto_inicial, 
+           ROUND(monto_restante) as monto_restante,
+           ROUND(monto_inicial - monto_restante) as gastado
+    FROM presupuesto_global
+    WHERE mes = $1 AND anio = $2
+`, [queryMes, queryAnio]);
         
         if (result.rows.length === 0) {
             res.json({ mes: queryMes, anio: queryAnio, monto_inicial: 0, monto_restante: 0, gastado: 0 });
@@ -826,9 +829,9 @@ app.get('/api/reportes/graficas', async (req, res) => {
         const gastadoValores = [];
 
         for (let i = 1; i <= 12; i++) {
-            abonoValores.push(abonoMap.get(i) || 0);
-            presupuestoValores.push(presupuestoMap.get(i) || 0);
-            gastadoValores.push(gastadoMap.get(i) || 0);
+           abonoValores.push(Math.round(abonoMap.get(i) || 0));      // ← Redondear
+    presupuestoValores.push(Math.round(presupuestoMap.get(i) || 0));  // ← Redondear
+    gastadoValores.push(Math.round(gastadoMap.get(i) || 0));  // ← Redondear
         }
 
         // Obtener nombres de departamentos
@@ -836,7 +839,7 @@ app.get('/api/reportes/graficas', async (req, res) => {
         for (const d of deptoResult.rows) {
             const deptoNombre = await bdPrincipal.query('SELECT nombre FROM departamentos WHERE id = $1', [d.departamento_id]);
             deptoLabels.push(deptoNombre.rows[0]?.nombre || 'Sin nombre');
-            deptoValores.push(parseFloat(d.total));
+               deptoValores.push(Math.round(parseFloat(d.total)));  
         }
 
         // Obtener nombres de conductores
@@ -847,7 +850,7 @@ app.get('/api/reportes/graficas', async (req, res) => {
                 FROM empleados WHERE id = $1
             `, [c.empleado_id]);
             conductoresNombres.push(empNombre.rows[0]?.nombre || `ID: ${c.empleado_id}`);
-            conductoresValores.push(parseFloat(c.total));
+            conductoresValores.push(Math.round(parseFloat(c.total)));  // ← Redondear
         }
 
         const totalAbono = abonoValores.reduce((a, b) => a + b, 0);

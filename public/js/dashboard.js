@@ -19,14 +19,17 @@ const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 // FORMATEAR MONTOS
 // =====================================================
 function formatearMonto(valor) {
-    if (valor >= 1000000) return `$${(valor / 1000000).toFixed(1)}M`;
-    if (valor >= 1000)    return `$${(valor / 1000).toFixed(0)}K`;
-    return `$${valor.toLocaleString()}`;
+    const entero = Math.round(valor);
+    if (entero >= 1000000) return `$${(entero / 1000000).toFixed(0)}M`;
+    if (entero >= 1000) return `$${(entero / 1000).toFixed(0)}K`;
+    return `$${entero.toLocaleString()}`;
 }
 
 function formatearMontoCompleto(valor) {
     if (valor === 0) return '$0';
-    return '$' + valor.toLocaleString('es-MX');
+    // Redondear a entero y eliminar decimales
+    const entero = Math.round(valor);
+    return '$' + entero.toLocaleString('es-MX');
 }
 
 // =====================================================
@@ -161,10 +164,10 @@ async function cargarPresupuestoConFiltros(anio, mes) {
 
         document.getElementById('kpiPeriodo').textContent  = periodoTexto;
         document.getElementById('kpiAsignado').textContent = `$${montoInicial.toLocaleString()}`;
-        document.getElementById('kpiGastado').textContent  = `$${montoGastado.toLocaleString()}`;
+       document.getElementById('kpiGastado').textContent = `$${Math.round(montoGastado).toLocaleString()}`;
 
         const kpiRestanteEl = document.getElementById('kpiRestante');
-        kpiRestanteEl.textContent  = `$${montoRestante.toLocaleString()}`;
+       kpiRestanteEl.textContent = `$${Math.round(montoRestante).toLocaleString()}`;
         kpiRestanteEl.style.color  =
             montoRestante < 0                          ? '#ef4444' :
             montoRestante < montoInicial * 0.2         ? '#f59e0b' : '#10b981';

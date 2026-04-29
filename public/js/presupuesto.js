@@ -158,9 +158,9 @@ function renderTabla(data) {
         row.innerHTML = `
             <td><strong>${p.anio}</strong></td>
             <td>${MESES[p.mes]}</td>
-            <td class="monto-presupuesto">$${inicial.toLocaleString()}</td>
-            <td class="monto-gastado">$${gastado.toLocaleString()}</td>
-            <td class="${restanteClass}">$${restante.toLocaleString()}</td>
+            <td class="monto-presupuesto">$${Math.round(inicial).toLocaleString()}</td>
+<td class="monto-gastado">$${Math.round(gastado).toLocaleString()}</td>
+<td class="${restanteClass}">$${Math.round(restante).toLocaleString()}</td>
             <td>
                 <div class="mini-bar-bg">
                     <div class="mini-bar-fill ${barClass}" style="width:${pct}%"></div>
